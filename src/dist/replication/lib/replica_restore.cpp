@@ -270,7 +270,6 @@ dsn::error_code replica::download_checkpoint(const configuration_restore_request
                err.to_string());
         return err;
     }
-    cold_backup_metadata backup_metadata;
     std::string local_backup_metada_file =
         utils::filesystem::path_combine(local_chkpt_dir, cold_backup_constant::BACKUP_METADATA);
     if (!read_cold_backup_metadata(local_backup_metada_file, backup_metadata)) {
