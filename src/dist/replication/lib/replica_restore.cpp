@@ -94,26 +94,34 @@ bool replica::read_cold_backup_metadata(const std::string &file,
 
 // verify whether the checkpoint directory is damaged base on backup_metadata under the chkpt
 bool replica::verify_checkpoint(const cold_backup_metadata &backup_metadata,
-                                const std::string &chkpt_dir)
+                                const std::string &chkpt_dir,
+                                const std::string &file_name)
 {
-    for (const auto &f_meta : backup_metadata.files) {
-        std::string local_file = ::dsn::utils::filesystem::path_combine(chkpt_dir, f_meta.name);
-        int64_t file_sz = 0;
-        std::string md5;
-        if (!::dsn::utils::filesystem::file_size(local_file, file_sz)) {
-            derror("%s: get file(%s) size failed", name(), local_file.c_str());
-            return false;
-        }
-        if (::dsn::utils::filesystem::md5sum(local_file, md5) != ERR_OK) {
-            derror("%s: get file(%s) md5 failed", name(), local_file.c_str());
-            return false;
-        }
-        if (file_sz != f_meta.size || md5 != f_meta.md5) {
-            derror("%s: file(%s) under checkpoint is damaged", name(), local_file.c_str());
-            return false;
-        }
+    auto iter = std::find_if(backup_metadata.files.begin(),
+                             backup_metadata.files.end(),
+                             [&file_name](const file_meta &f) { return f.name == file_name; });
+
+    // There is no need to verify this file if it is not included in backup_metadata
+    if (iter == backup_metadata.files.end()) {
+        return true;
     }
-    return remove_useless_file_under_chkpt(chkpt_dir, backup_metadata);
+
+    std::string local_file = ::dsn::utils::filesystem::path_combine(chkpt_dir, file_name);
+    int64_t file_sz = 0;
+    std::string md5;
+    if (!::dsn::utils::filesystem::file_size(local_file, file_sz)) {
+        derror("%s: get file(%s) size failed", name(), local_file.c_str());
+        return false;
+    }
+    if (::dsn::utils::filesystem::md5sum(local_file, md5) != ERR_OK) {
+        derror("%s: get file(%s) md5 failed", name(), local_file.c_str());
+        return false;
+    }
+    if (file_sz != iter->size || md5 != iter->md5) {
+        derror("%s: file(%s) under checkpoint is damaged", name(), local_file.c_str());
+        return false;
+    }
+    return true;
 }
 
 dsn::error_code replica::download_checkpoint(const configuration_restore_request &req,
@@ -125,8 +133,9 @@ dsn::error_code replica::download_checkpoint(const configuration_restore_request
 
     dsn::error_code err = dsn::ERR_OK;
     dsn::task_tracker tracker;
+    cold_backup_metadata backup_metadata;
 
-    auto download_file_callback_func = [this, &err](
+    auto download_file_callback_func = [this, &err, &backup_metadata, &local_chkpt_dir](
         const download_response &d_resp, block_file_ptr f, const std::string &local_file) {
         if (d_resp.err != dsn::ERR_OK) {
             if (d_resp.err == ERR_OBJECT_NOT_FOUND) {
@@ -156,6 +165,9 @@ dsn::error_code replica::download_checkpoint(const configuration_restore_request
                     current_md5.c_str(),
                     f->get_md5sum().c_str());
                 err = ERR_FILE_OPERATION_FAILED;
+            } else if (!verify_checkpoint(backup_metadata, local_chkpt_dir, f->file_name())) {
+                derror("%s: checkpoint is damaged, chkpt = %s", name(), local_chkpt_dir.c_str());
+                err = ERR_CORRUPTION;
             } else {
                 _cur_download_size.fetch_add(f->get_size());
                 update_restore_progress();
@@ -258,7 +270,6 @@ dsn::error_code replica::download_checkpoint(const configuration_restore_request
                err.to_string());
         return err;
     }
-    cold_backup_metadata backup_metadata;
     std::string local_backup_metada_file =
         utils::filesystem::path_combine(local_chkpt_dir, cold_backup_constant::BACKUP_METADATA);
     if (!read_cold_backup_metadata(local_backup_metada_file, backup_metadata)) {
@@ -289,12 +300,12 @@ dsn::error_code replica::download_checkpoint(const configuration_restore_request
     tracker.wait_outstanding_tasks();
 
     if (err == ERR_OK) {
-        if (!verify_checkpoint(backup_metadata, local_chkpt_dir)) {
-            derror("%s: checkpoint is damaged, chkpt = %s", name(), local_chkpt_dir.c_str());
+        if (!remove_useless_file_under_chkpt(local_chkpt_dir, backup_metadata)) {
+            dwarn("%s: remove useless file failed, chkpt = %s", name(), local_chkpt_dir.c_str());
             // if checkpoint is damaged, using corruption to represent it
             err = ERR_CORRUPTION;
         } else {
-            ddebug("%s: checkpoint is valid, chkpt = %s", name(), local_chkpt_dir.c_str());
+            ddebug("%s: remove useless filie succeed, chkpt = %s", name(), local_chkpt_dir.c_str());
             // checkpoint is valid, we should delete the backup_metadata under checkpoint
             std::string metadata_file = ::dsn::utils::filesystem::path_combine(
                 local_chkpt_dir, cold_backup_constant::BACKUP_METADATA);
