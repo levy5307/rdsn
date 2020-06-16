@@ -25,11 +25,10 @@
  */
 
 #include "thrift_message_parser.h"
+#include "message_parser_manager.h"
 
 #include <dsn/service_api_c.h>
 #include <dsn/cpp/serialization_helper/thrift_helper.h>
-#include <dsn/cpp/serialization_helper/dsn.layer2_types.h>
-#include <dsn/cpp/message_utils.h>
 #include <dsn/utility/ports.h>
 #include <dsn/utility/crc.h>
 #include <dsn/utility/endians.h>
@@ -64,6 +63,8 @@ static constexpr size_t THFT_HDR_VERSION_LENGTH = 8;
 
 // "THFT" + uint32(hdr_version) + uint32(hdr_length) + 36bytes(request_meta_v0)
 static constexpr size_t HEADER_LENGTH_V0 = 48;
+
+DSN_REGISTER_MESSAGE_PARSER(thrift_message_parser, NET_HDR_THRIFT, {"THFT"});
 
 static void parse_request_meta_v0(data_input &input, /*out*/ request_meta_v0 &meta)
 {

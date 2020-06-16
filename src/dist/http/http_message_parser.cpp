@@ -25,16 +25,19 @@
  */
 
 #include "http_message_parser.h"
+#include "core/rpc/message_parser_manager.h"
 
 #include <dsn/utility/ports.h>
 #include <dsn/utility/crc.h>
 #include <dsn/tool-api/rpc_message.h>
-#include <dsn/cpp/serialization.h>
 #include <dsn/c/api_layer1.h>
 #include <dsn/tool-api/http_server.h>
 #include <iomanip>
 
 namespace dsn {
+
+const std::vector<const char *> signatures{"GET ", "POST"};
+DSN_REGISTER_MESSAGE_PARSER(http_message_parser, NET_HDR_HTTP, signatures);
 
 struct parser_context
 {

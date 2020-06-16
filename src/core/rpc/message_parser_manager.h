@@ -30,7 +30,6 @@
  *
  * Revision history:
  *     Mar., 2015, @imzhenyu (Zhenyu Guo), first version
- *     xxxx-xx-xx, author, fix bug about xxx
  */
 
 #pragma once
@@ -38,6 +37,7 @@
 #include <dsn/tool-api/message_parser.h>
 
 namespace dsn {
+
 class message_parser_manager : public utils::singleton<message_parser_manager>
 {
 public:
@@ -66,4 +66,19 @@ private:
 
     std::vector<parser_factory_info> _factory_vec;
 };
-}
+
+template <typename T>
+struct message_parser_registerer
+{
+    message_parser_registerer(network_header_format fmt,
+                              const std::vector<const char *> &signatures)
+    {
+        message_parser_manager::instance().register_factory(
+            fmt, signatures, T::template create<T>, sizeof(T));
+    }
+};
+
+#define DSN_REGISTER_MESSAGE_PARSER(type, fmt, signatures)                                         \
+    static message_parser_registerer<type> COMPONENT_PROVIDER_REG_##name(fmt, signatures)
+
+} // namespace dsn

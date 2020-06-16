@@ -163,15 +163,6 @@ bool register_component_provider(const char *name,
     return dsn::utils::factory_store<logging_provider>::register_factory(name, f, type);
 }
 
-bool register_component_provider(network_header_format fmt,
-                                 const std::vector<const char *> &signatures,
-                                 message_parser::factory f,
-                                 size_t sz)
-{
-    message_parser_manager::instance().register_factory(fmt, signatures, f, sz);
-    return true;
-}
-
 toollet *get_toollet(const char *name, ::dsn::provider_type type)
 {
     toollet *tlt = nullptr;

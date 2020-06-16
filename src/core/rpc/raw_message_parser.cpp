@@ -24,14 +24,8 @@
  * THE SOFTWARE.
  */
 
-/*
- * Description:
- *     What is this file about?
- *
- * Revision history:
- *     xxxx-xx-xx, author, fix bug about xxx
- */
 #include "raw_message_parser.h"
+#include "message_parser_manager.h"
 #include <dsn/service_api_c.h>
 #include <dsn/tool-api/task_spec.h>
 #include <dsn/tool-api/network.h>
@@ -40,6 +34,8 @@ namespace dsn {
 
 DEFINE_TASK_CODE_RPC(RPC_CALL_RAW_SESSION_DISCONNECT, TASK_PRIORITY_COMMON, THREAD_POOL_DEFAULT)
 DEFINE_TASK_CODE_RPC(RPC_CALL_RAW_MESSAGE, TASK_PRIORITY_COMMON, THREAD_POOL_DEFAULT)
+
+DSN_REGISTER_MESSAGE_PARSER(raw_message_parser, NET_HDR_RAW, {"_RAW"});
 
 // static
 void raw_message_parser::notify_rpc_session_disconnected(rpc_session *sp)

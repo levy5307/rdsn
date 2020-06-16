@@ -34,10 +34,14 @@
  */
 
 #include "dsn_message_parser.h"
+#include "message_parser_manager.h"
 #include <dsn/service_api_c.h>
 #include <dsn/utility/crc.h>
 
 namespace dsn {
+
+DSN_REGISTER_MESSAGE_PARSER(dsn_message_parser, NET_HDR_DSN, {"RDSN"});
+
 void dsn_message_parser::reset() { _header_checked = false; }
 
 message_ex *dsn_message_parser::get_message_on_receive(message_reader *reader,
