@@ -27,7 +27,6 @@
 #include "raw_message_parser.h"
 #include "message_parser_manager.h"
 #include <dsn/service_api_c.h>
-#include <dsn/tool-api/task_spec.h>
 #include <dsn/tool-api/network.h>
 
 namespace dsn {

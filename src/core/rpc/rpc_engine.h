@@ -30,6 +30,7 @@
 #include <dsn/tool-api/task.h>
 #include <dsn/tool-api/network.h>
 #include <dsn/tool-api/global_config.h>
+#include <dsn/utility/factory_store.h>
 
 namespace dsn {
 

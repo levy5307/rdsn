@@ -24,14 +24,18 @@
  * THE SOFTWARE.
  */
 
-#include <dsn/utility/rand.h>
-#include <memory>
-
 #include "asio_net_provider.h"
 #include "asio_rpc_session.h"
 
+#include <memory>
+#include <dsn/utility/rand.h>
+#include <dsn/tool_api.h>
+
 namespace dsn {
 namespace tools {
+
+DSN_REGISTER_COMPONENT_PROVIDER(asio_network_provider, "dsn::tools::asio_network_provider");
+DSN_REGISTER_COMPONENT_PROVIDER(asio_udp_provider, "dsn::tools::asio_udp_provider");
 
 asio_network_provider::asio_network_provider(rpc_engine *srv, network *inner_provider)
     : connection_oriented_network(srv, inner_provider)

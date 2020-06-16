@@ -146,6 +146,8 @@ void sim_server_session::send(uint64_t sig)
     on_send_completed(sig);
 }
 
+DSN_REGISTER_COMPONENT_PROVIDER(sim_network_provider, "dsn::tools::sim_network_provider");
+
 sim_network_provider::sim_network_provider(rpc_engine *rpc, network *inner_provider)
     : connection_oriented_network(rpc, inner_provider)
 {

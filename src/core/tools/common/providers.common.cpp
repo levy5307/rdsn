@@ -54,9 +54,6 @@ void register_common_providers()
 
     register_std_lock_providers();
 
-    register_component_provider<asio_network_provider>("dsn::tools::asio_network_provider");
-    register_component_provider<asio_udp_provider>("dsn::tools::asio_udp_provider");
-    register_component_provider<sim_network_provider>("dsn::tools::sim_network_provider");
     register_component_provider<simple_task_queue>("dsn::tools::simple_task_queue");
     register_component_provider<simple_timer_service>("dsn::tools::simple_timer_service");
 }
