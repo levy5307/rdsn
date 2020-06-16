@@ -79,6 +79,6 @@ struct message_parser_registerer
 };
 
 #define DSN_REGISTER_MESSAGE_PARSER(type, fmt, signatures)                                         \
-    static message_parser_registerer<type> COMPONENT_PROVIDER_REG_##name(fmt, signatures)
+    static message_parser_registerer<type> MESSAGE_PARSER_REG_##type(fmt, signatures)
 
 } // namespace dsn
