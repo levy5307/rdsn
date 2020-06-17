@@ -720,4 +720,16 @@ void connection_oriented_network::on_client_session_disconnected(rpc_session_ptr
                scount);
     }
 }
+
+namespace tools {
+namespace internal_use_only {
+
+bool register_component_provider(const char *name, network::factory f, ::dsn::provider_type type)
+{
+    printf("register_component_provider, name = %s\n", name);
+    return utils::factory_store<network>::register_factory(name, f, type);
+}
+
+} // namespace internal_use_only
+} // namespace tools
 } // namespace dsn

@@ -848,16 +848,6 @@ void rpc_engine::forward(message_ex *request, rpc_address address)
         call_ip(address, copied_request, nullptr, false, true);
     }
 }
-
-namespace tools {
-namespace internal_use_only {
-bool register_component_provider(const char *name, network::factory f, ::dsn::provider_type type)
-{
-    return utils::factory_store<network>::register_factory(name, f, type);
-}
-} // namespace internal_use_only
-} // namespace tools
-
 } // namespace dsn
 
 // rpc calls
