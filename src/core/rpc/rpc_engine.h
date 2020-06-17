@@ -128,16 +128,13 @@ private:
     std::vector<std::pair<std::unique_ptr<handler_entry>, utils::rw_lock_nr> *> _vhandlers;
 };
 
-class rpc_engine
+class rpc_engine : public utils::singleton<rpc_engine>
 {
 public:
-    explicit rpc_engine(service_node *node);
-
     //
     // management routines
     //
     ::dsn::error_code start(const service_app_spec &spec);
-    void start_serving() { _is_serving = true; }
 
     //
     // rpc registrations
@@ -175,6 +172,9 @@ public:
     void call_address(rpc_address addr, message_ex *request, const rpc_response_task_ptr &call);
 
 private:
+    friend class utils::singleton<rpc_engine>;
+
+    rpc_engine();
     network *create_network(const network_server_config &netcs,
                             bool client_only,
                             network_header_format client_hdr_format);
@@ -190,7 +190,6 @@ private:
     rpc_server_dispatcher _rpc_dispatcher;
 
     volatile bool _is_running;
-    volatile bool _is_serving;
 };
 
 // ------------------------ inline implementations --------------------
@@ -210,5 +209,7 @@ rpc_engine::call_address(rpc_address addr, message_ex *request, const rpc_respon
         break;
     }
 }
+
+inline dsn::rpc_engine *get_rpc_engine() { return &dsn::rpc_engine::instance(); }
 
 } // namespace dsn

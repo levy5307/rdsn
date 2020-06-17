@@ -27,7 +27,6 @@
 #include <dsn/tool-api/task_queue.h>
 #include "task_engine.h"
 #include <dsn/tool-api/network.h>
-#include "core/rpc/rpc_engine.h"
 
 namespace dsn {
 
@@ -80,7 +79,7 @@ void task_queue::enqueue_internal(task *task)
             if (ac_value > _spec->queue_length_throttling_threshold) {
                 auto rtask = static_cast<rpc_request_task *>(task);
                 auto resp = rtask->get_request()->create_response();
-                task::get_current_rpc()->reply(resp, ERR_BUSY);
+                dsn_rpc_reply(resp, ERR_BUSY);
 
                 dwarn("too many pending tasks (%d), reject message from %s with trace_id = "
                       "%016" PRIx64,

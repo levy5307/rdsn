@@ -26,13 +26,11 @@
 
 #include "service_engine.h"
 #include "task_engine.h"
-#include "core/rpc/rpc_engine.h"
 
 #include <dsn/utility/filesystem.h>
 #include <dsn/utility/smart_pointers.h>
 #include <dsn/tool-api/env_provider.h>
 #include <dsn/tool-api/command_manager.h>
-#include <dsn/tool_api.h>
 #include <dsn/tool/node_scoper.h>
 
 using namespace dsn::utils;
@@ -41,35 +39,10 @@ namespace dsn {
 
 service_node::service_node(service_app_spec &app_spec) { _app_spec = app_spec; }
 
-bool service_node::rpc_register_handler(task_code code,
-                                        const char *extra_name,
-                                        const rpc_request_handler &h)
-{
-    return _node_io.rpc->register_rpc_handler(code, extra_name, h);
-}
-
-bool service_node::rpc_unregister_handler(dsn::task_code rpc_code)
-{
-    return _node_io.rpc->unregister_rpc_handler(rpc_code);
-}
-
-error_code service_node::init_io_engine()
-{
-    // init rpc engine
-    _node_io.rpc = make_unique<rpc_engine>(this);
-    return ERR_OK;
-}
-
-error_code service_node::start_io_engine_in_main()
-{
-    // start rpc engine
-    return _node_io.rpc->start(_app_spec);
-}
-
 dsn::error_code service_node::start_app()
 {
     dassert(_entity.get(), "entity hasn't initialized");
-    _entity->set_address(rpc()->primary_address());
+    _entity->set_address(dsn_primary_address());
 
     std::vector<std::string> args;
     utils::split_args(spec().arguments.c_str(), args);
@@ -116,13 +89,6 @@ error_code service_node::start()
     _computation->create(_app_spec.pools);
     dassert(!_computation->is_started(), "task engine must not be started at this point");
 
-    err = init_io_engine();
-    if (err != ERR_OK)
-        return err;
-
-    // start io engines (only timer, disk and rpc), others are started in app start task
-    start_io_engine_in_main();
-
     // start task engine
     _computation->start();
     dassert(_computation->is_started(), "task engine must be started at this point");
@@ -134,7 +100,7 @@ error_code service_node::start()
     }
 
     // start rpc serving
-    _node_io.rpc->start_serving();
+    err = dsn_rpc_start(this->spec());
 
     return err;
 }

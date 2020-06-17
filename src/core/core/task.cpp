@@ -45,7 +45,6 @@
 
 #include "task_engine.h"
 #include "service_engine.h"
-#include "core/rpc/rpc_engine.h"
 
 namespace dsn {
 __thread struct __tls_dsn__ tls_dsn;
@@ -72,7 +71,6 @@ __thread uint16_t tls_dsn_lower32_task_id_mask = 0;
         tls_dsn.worker = worker;
         tls_dsn.worker_index = worker ? worker->index() : -1;
         tls_dsn.current_task = nullptr;
-        tls_dsn.rpc = node->rpc();
         tls_dsn.env = service_engine::instance().env();
     }
 

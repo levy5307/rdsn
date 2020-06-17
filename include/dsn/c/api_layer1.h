@@ -31,6 +31,7 @@
 #include <dsn/tool-api/gpid.h>
 #include <dsn/tool-api/rpc_address.h>
 #include <dsn/tool-api/task_tracker.h>
+#include <dsn/tool-api/global_config.h>
 
 /*!
  @defgroup service-api-c Core Service API
@@ -234,6 +235,9 @@ extern DSN_API void dsn_rpc_reply(dsn::message_ex *response,
 
 /*! forward the request to another server instead */
 extern DSN_API void dsn_rpc_forward(dsn::message_ex *request, dsn::rpc_address addr);
+
+/*! start rpc engine */
+DSN_API dsn::error_code dsn_rpc_start(const dsn::service_app_spec &_app_spec);
 
 /*@}*/
 

@@ -74,7 +74,6 @@ struct __tls_dsn__
     service_node *node;
     int node_id;
 
-    rpc_engine *rpc;
     env_provider *env;
 
     int last_worker_queue_size;
@@ -246,7 +245,6 @@ public:
     static int get_current_node_id();
     static int get_current_worker_index();
     static const char *get_current_node_name();
-    static rpc_engine *get_current_rpc();
     static env_provider *get_current_env();
 
     static void set_tls_dsn_context(
@@ -668,12 +666,6 @@ __inline /*static*/ int task::get_current_worker_index()
 {
     check_tls_dsn();
     return tls_dsn.worker_index;
-}
-
-__inline /*static*/ rpc_engine *task::get_current_rpc()
-{
-    check_tls_dsn();
-    return tls_dsn.rpc;
 }
 
 __inline /*static*/ env_provider *task::get_current_env()

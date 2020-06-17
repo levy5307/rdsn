@@ -406,11 +406,10 @@ rpc_request_task *rpc_server_dispatcher::on_request(message_ex *msg, service_nod
 }
 
 //----------------------------------------------------------------------------------------------
-rpc_engine::rpc_engine(service_node *node) : _node(node), _rpc_matcher(this)
+rpc_engine::rpc_engine() : _rpc_matcher(this)
 {
-    dassert(_node != nullptr, "");
+    _node = service_engine::instance().get_all_nodes().begin()->second.get();
     _is_running = false;
-    _is_serving = false;
 }
 
 //
@@ -536,7 +535,7 @@ bool rpc_engine::unregister_rpc_handler(dsn::task_code rpc_code)
 
 void rpc_engine::on_recv_request(network *net, message_ex *msg, int delay_ms)
 {
-    if (!_is_serving) {
+    if (!_is_running) {
         dwarn("recv message with rpc name %s from %s when rpc engine is not serving, trace_id = "
               "%" PRIu64,
               msg->header->rpc_name,
@@ -838,7 +837,7 @@ void rpc_engine::forward(message_ex *request, rpc_address address)
     if (request->header->from_address.port() <= MAX_CLIENT_PORT) {
         auto resp = request->create_response();
         ::dsn::marshall(resp, address);
-        ::dsn::task::get_current_rpc()->reply(resp, ::dsn::ERR_FORWARD_TO_OTHERS);
+        reply(resp, ::dsn::ERR_FORWARD_TO_OTHERS);
     }
 
     // do real forwarding, not reset request_id, but set forwarded flag
@@ -860,3 +859,74 @@ bool register_component_provider(const char *name, network::factory f, ::dsn::pr
 } // namespace tools
 
 } // namespace dsn
+
+// rpc calls
+DSN_API dsn::rpc_address dsn_primary_address() { return dsn::get_rpc_engine()->primary_address(); }
+
+DSN_API bool dsn_rpc_register_handler(dsn::task_code code,
+                                      const char *extra_name,
+                                      const dsn::rpc_request_handler &cb)
+{
+    return dsn::get_rpc_engine()->register_rpc_handler(code, extra_name, cb);
+}
+
+DSN_API bool dsn_rpc_unregiser_handler(dsn::task_code code)
+{
+    return dsn::get_rpc_engine()->unregister_rpc_handler(code);
+}
+
+DSN_API void dsn_rpc_call(dsn::rpc_address server, dsn::rpc_response_task *rpc_call)
+{
+    dassert(rpc_call->spec().type == TASK_TYPE_RPC_RESPONSE,
+            "invalid task_type, type = %s",
+            enum_to_string(rpc_call->spec().type));
+
+    auto msg = rpc_call->get_request();
+    msg->server_address = server;
+    dsn::get_rpc_engine()->call(msg, dsn::rpc_response_task_ptr(rpc_call));
+}
+
+DSN_API dsn::message_ex *dsn_rpc_call_wait(dsn::rpc_address server, dsn::message_ex *request)
+{
+    auto msg = ((::dsn::message_ex *)request);
+    msg->server_address = server;
+
+    ::dsn::rpc_response_task *rtask = new ::dsn::rpc_response_task(msg, nullptr, 0);
+    rtask->add_ref();
+    dsn::get_rpc_engine()->call(msg, dsn::rpc_response_task_ptr(rtask));
+    rtask->wait();
+    if (rtask->error() == ::dsn::ERR_OK) {
+        auto msg = rtask->get_response();
+        msg->add_ref();       // released by callers
+        rtask->release_ref(); // added above
+        return msg;
+    } else {
+        rtask->release_ref(); // added above
+        return nullptr;
+    }
+}
+
+DSN_API void dsn_rpc_call_one_way(dsn::rpc_address server, dsn::message_ex *request)
+{
+    auto msg = ((::dsn::message_ex *)request);
+    msg->server_address = server;
+
+    dsn::get_rpc_engine()->call(msg, nullptr);
+}
+
+DSN_API void dsn_rpc_reply(dsn::message_ex *response, dsn::error_code err)
+{
+    auto msg = ((::dsn::message_ex *)response);
+    dsn::get_rpc_engine()->reply(msg, err);
+}
+
+DSN_API void dsn_rpc_forward(dsn::message_ex *request, dsn::rpc_address addr)
+{
+    dsn::get_rpc_engine()->forward((::dsn::message_ex *)(request), ::dsn::rpc_address(addr));
+}
+
+DSN_API dsn::error_code dsn_rpc_start(const dsn::service_app_spec &_app_spec)
+{
+    // start rpc engine
+    return dsn::get_rpc_engine()->start(_app_spec);
+}
