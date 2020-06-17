@@ -378,6 +378,10 @@ bool run(const char *config_file,
         exit(1);
     }
 
+    // start rpc engine
+    dsn::error_code err = dsn_rpc_start();
+    dassert(err == dsn::ERR_OK, "rpc engine start failed, err = %s", err.to_string());
+
     dsn::command_manager::instance().register_command({"config-dump"},
                                                       "config-dump - dump configuration",
                                                       "config-dump [to-this-config-file]",

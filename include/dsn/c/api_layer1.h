@@ -237,7 +237,7 @@ extern DSN_API void dsn_rpc_reply(dsn::message_ex *response,
 extern DSN_API void dsn_rpc_forward(dsn::message_ex *request, dsn::rpc_address addr);
 
 /*! start rpc engine */
-DSN_API dsn::error_code dsn_rpc_start(const dsn::service_app_spec &_app_spec);
+DSN_API dsn::error_code dsn_rpc_start();
 
 /*@}*/
 

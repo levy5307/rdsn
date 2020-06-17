@@ -134,7 +134,7 @@ public:
     //
     // management routines
     //
-    ::dsn::error_code start(const service_app_spec &spec);
+    error_code start();
 
     //
     // rpc registrations

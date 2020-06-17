@@ -99,9 +99,6 @@ error_code service_node::start()
         init_service_app();
     }
 
-    // start rpc serving
-    err = dsn_rpc_start(this->spec());
-
     return err;
 }
 

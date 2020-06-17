@@ -434,7 +434,7 @@ network *rpc_engine::create_network(const network_server_config &netcs,
     }
 }
 
-error_code rpc_engine::start(const service_app_spec &aspec)
+error_code rpc_engine::start()
 {
     if (_is_running) {
         return ERR_SERVICE_ALREADY_RUNNING;
@@ -444,6 +444,7 @@ error_code rpc_engine::start(const service_app_spec &aspec)
     _client_nets.resize(network_header_format::max_value() + 1);
 
     // for each format
+    const service_app_spec &aspec = _node->spec();
     for (int i = NET_HDR_INVALID + 1; i <= network_header_format::max_value(); i++) {
         std::vector<std::unique_ptr<network>> &pnet = _client_nets[i];
         pnet.resize(rpc_channel::max_value() + 1);
@@ -915,8 +916,8 @@ DSN_API void dsn_rpc_forward(dsn::message_ex *request, dsn::rpc_address addr)
     dsn::get_rpc_engine()->forward((::dsn::message_ex *)(request), ::dsn::rpc_address(addr));
 }
 
-DSN_API dsn::error_code dsn_rpc_start(const dsn::service_app_spec &_app_spec)
+DSN_API dsn::error_code dsn_rpc_start()
 {
     // start rpc engine
-    return dsn::get_rpc_engine()->start(_app_spec);
+    return dsn::get_rpc_engine()->start();
 }
