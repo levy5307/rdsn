@@ -1,4 +1,8 @@
-set(MY_PROJ_NAME dsn.utils)
+set(MY_PROJ_NAME dsn_utils)
+
+#Source files under CURRENT project directory will be automatically included.
+#You can manually set MY_PROJ_SRC to include source files under other directories.
+set(MY_PROJ_SRC "")
 
 # Search mode for source files under CURRENT project directory?
 # "GLOB_RECURSE" for recursive search
@@ -7,9 +11,11 @@ set(MY_SRC_SEARCH_MODE "GLOB")
 
 set(MY_PROJ_LIBS "")
 
+set(MY_BOOST_LIBS Boost::system Boost::filesystem Boost::regex)
+
 # Extra files that will be installed
 set(MY_BINPLACES "")
 
-dsn_add_object()
+dsn_add_static_library()
 
 add_subdirectory(tests)
