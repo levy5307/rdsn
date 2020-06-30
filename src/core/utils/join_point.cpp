@@ -34,7 +34,8 @@
  */
 
 #include <dsn/utility/join_point.h>
-#include <dsn/service_api_c.h>
+#include <dsn/c/api_utilities.h>
+#include <dsn/tool-api/global_config.h>
 
 namespace dsn {
 
@@ -159,5 +160,4 @@ join_point_base::advice_entry *join_point_base::get_by_name(const char *name)
 
     return nullptr;
 }
-
 } // end namespace dsn

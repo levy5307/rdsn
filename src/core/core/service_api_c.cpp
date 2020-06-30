@@ -70,12 +70,6 @@ DSN_API bool dsn_task_is_running_inside(dsn::task *t)
     return ::dsn::task::get_current_task() == t;
 }
 
-DSN_API void dsn_coredump()
-{
-    ::dsn::utils::coredump::write();
-    ::abort();
-}
-
 //------------------------------------------------------------------------------
 //
 // rpc
@@ -166,15 +160,6 @@ DSN_API bool dsn_run_config(const char *config, bool sleep_after_init)
 {
     std::string name;
     return run(config, nullptr, sleep_after_init, name);
-}
-
-NORETURN DSN_API void dsn_exit(int code)
-{
-    printf("dsn exit with code %d\n", code);
-    fflush(stdout);
-    ::dsn::tools::sys_exit.execute(::dsn::SYS_EXIT_NORMAL);
-
-    _exit(code);
 }
 
 DSN_API bool dsn_mimic_app(const char *app_role, int index)

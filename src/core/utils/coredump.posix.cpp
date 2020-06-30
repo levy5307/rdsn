@@ -37,7 +37,6 @@
 
 #include "coredump.h"
 #include <dsn/tool_api.h>
-#include <sys/types.h>
 #include <signal.h>
 
 namespace dsn {
@@ -88,3 +87,20 @@ static void handle_term(int signal_id)
 }
 
 #endif
+
+NORETURN DSN_API void dsn_exit(int code)
+{
+    printf("dsn exit with code %d\n", code);
+    fflush(stdout);
+    ::dsn::tools::sys_exit.execute(::dsn::SYS_EXIT_NORMAL);
+
+    _exit(code);
+}
+
+DSN_API void dsn_coredump()
+{
+    ::dsn::utils::coredump::write();
+    ::abort();
+}
+
+

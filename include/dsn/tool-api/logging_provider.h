@@ -36,6 +36,7 @@
 #pragma once
 
 #include <dsn/service_api_c.h>
+#include <dsn/utility/factory_store.h>
 #include <stdarg.h>
 
 namespace dsn {

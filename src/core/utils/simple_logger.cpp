@@ -29,6 +29,7 @@
 #include <dsn/utility/filesystem.h>
 #include <dsn/utility/flags.h>
 #include <dsn/utility/time_utils.h>
+#include <dsn/tool-api/task.h>
 
 namespace dsn {
 namespace tools {

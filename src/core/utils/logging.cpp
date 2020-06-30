@@ -24,7 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include <dsn/service_api_c.h>
 #include <dsn/tool-api/command_manager.h>
 #include <dsn/tool-api/logging_provider.h>
 #include <dsn/tool_api.h>
