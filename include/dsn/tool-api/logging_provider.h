@@ -87,6 +87,11 @@ private:
     static logging_provider *create_default_instance();
 };
 
-/*@}*/
-// ----------------------- inline implementation ---------------------------------------
+namespace tools {
+namespace internal_use_only {
+DSN_API bool register_component_provider(const char *name,
+                                         logging_provider::factory f,
+                                         ::dsn::provider_type type);
+} // namespace tools
+} // namespace internal_use_only
 } // namespace dsn

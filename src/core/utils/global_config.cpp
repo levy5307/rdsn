@@ -35,7 +35,6 @@
 
 #include <thread>
 
-#include <dsn/utility/singleton_store.h>
 #include <dsn/utility/filesystem.h>
 #include <dsn/utility/config_api.h>
 #include <dsn/utility/flags.h>

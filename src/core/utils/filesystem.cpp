@@ -38,7 +38,6 @@
 #include <dsn/c/api_utilities.h>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/filesystem.h>
-#include <dsn/utility/utils.h>
 #include <dsn/utility/safe_strerror_posix.h>
 
 #include <sys/stat.h>

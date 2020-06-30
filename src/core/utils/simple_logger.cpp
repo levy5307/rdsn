@@ -279,5 +279,13 @@ void simple_logger::dsn_log(const char *file,
     }
 }
 
+namespace internal_use_only {
+bool register_component_provider(const char *name,
+                                 logging_provider::factory f,
+                                 ::dsn::provider_type type)
+{
+    return dsn::utils::factory_store<logging_provider>::register_factory(name, f, type);
+}
+} // namespace internal_use_only
 } // namespace tools
 } // namespace dsn

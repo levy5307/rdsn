@@ -31,7 +31,7 @@
 #include <dsn/tool-api/auto_codes.h>
 #include <dsn/utility/flags.h>
 #include <dsn/utility/smart_pointers.h>
-#include "core/tools/common/simple_logger.h"
+#include "core/utils/simple_logger.h"
 
 DSN_API dsn_log_level_t dsn_log_start_level = dsn_log_level_t::LOG_LEVEL_INFORMATION;
 DSN_DEFINE_string("core",
@@ -135,6 +135,9 @@ DSN_API void dsn_log(const char *file,
 }
 
 namespace dsn {
+using namespace tools;
+DSN_REGISTER_COMPONENT_PROVIDER(screen_logger, "dsn::tools::screen_logger");
+DSN_REGISTER_COMPONENT_PROVIDER(simple_logger, "dsn::tools::simple_logger");
 
 std::unique_ptr<logging_provider> logging_provider::_logger =
     std::unique_ptr<logging_provider>(nullptr);
@@ -152,4 +155,5 @@ logging_provider *logging_provider::create_default_instance()
 }
 
 void logging_provider::set_logger(logging_provider *logger) { _logger.reset(logger); }
+
 } // namespace dsn
