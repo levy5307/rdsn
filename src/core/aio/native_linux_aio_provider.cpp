@@ -38,7 +38,7 @@ native_linux_aio_provider::native_linux_aio_provider(disk_engine *disk) : aio_pr
     dassert(ret == 0, "io_setup error, ret = %d", ret);
 
     _is_running = true;
-    _worker = std::thread([this, disk]() {
+    _worker = std::thread([this]() {
         task::set_tls_dsn_context(node(), nullptr);
         get_event();
     });
@@ -167,23 +167,11 @@ error_code native_linux_aio_provider::aio_internal(aio_task *aio_tsk,
                       aio->file_offset);
         break;
     case AIO_Write:
-        if (aio->buffer) {
-            io_prep_pwrite(&aio->cb,
-                           static_cast<int>((ssize_t)aio->file),
-                           aio->buffer,
-                           aio->buffer_size,
-                           aio->file_offset);
-        } else {
-            int iovcnt = aio->write_buffer_vec->size();
-            struct iovec *iov = (struct iovec *)alloca(sizeof(struct iovec) * iovcnt);
-            for (int i = 0; i < iovcnt; i++) {
-                const dsn_file_buffer_t &buf = aio->write_buffer_vec->at(i);
-                iov[i].iov_base = buf.buffer;
-                iov[i].iov_len = buf.size;
-            }
-            io_prep_pwritev(
-                &aio->cb, static_cast<int>((ssize_t)aio->file), iov, iovcnt, aio->file_offset);
-        }
+        io_prep_pwrite(&aio->cb,
+                       static_cast<int>((ssize_t)aio->file),
+                       aio->buffer,
+                       aio->buffer_size,
+                       aio->file_offset);
         break;
     default:
         derror("unknown aio type %u", static_cast<int>(aio->type));
