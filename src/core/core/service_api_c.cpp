@@ -37,7 +37,7 @@
 #endif
 
 #include "service_engine.h"
-#include "core/rpc/rpc_engine.h"
+#include "runtime/rpc/rpc_engine.h"
 #include "core/task/task_engine.h"
 #include "coredump.h"
 

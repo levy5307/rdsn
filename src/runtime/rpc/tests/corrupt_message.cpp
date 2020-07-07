@@ -8,7 +8,7 @@
 #include <boost/lexical_cast.hpp>
 #include <iostream>
 
-#include "test_utils.h"
+#include "core/tests/test_utils.h"
 
 // this only works with the fault injector
 TEST(core, corrupt_message)

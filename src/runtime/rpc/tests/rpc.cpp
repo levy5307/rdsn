@@ -37,7 +37,7 @@
 #include <dsn/tool-api/group_address.h>
 #include <dsn/tool-api/async_calls.h>
 
-#include "test_utils.h"
+#include "core/tests/test_utils.h"
 
 typedef std::function<void(error_code, dsn::message_ex *, dsn::message_ex *)> rpc_reply_handler;
 

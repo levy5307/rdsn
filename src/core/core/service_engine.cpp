@@ -26,7 +26,7 @@
 
 #include "service_engine.h"
 #include "core/task/task_engine.h"
-#include "core/rpc/rpc_engine.h"
+#include "runtime/rpc/rpc_engine.h"
 
 #include <dsn/utility/filesystem.h>
 #include <dsn/utility/smart_pointers.h>

@@ -45,7 +45,7 @@
 
 #include "task_engine.h"
 #include "core/core/service_engine.h"
-#include "core/rpc/rpc_engine.h"
+#include "runtime/rpc/rpc_engine.h"
 
 namespace dsn {
 __thread struct __tls_dsn__ tls_dsn;
