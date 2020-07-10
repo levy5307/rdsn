@@ -5,7 +5,7 @@
 #pragma once
 
 #include <dsn/utility/clock.h>
-#include "scheduler.h"
+#include "core/tools/simulator/scheduler.h"
 
 namespace dsn {
 namespace tools {

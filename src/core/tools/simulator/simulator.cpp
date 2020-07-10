@@ -36,9 +36,9 @@
 #include <dsn/tool/simulator.h>
 #include "scheduler.h"
 
-#include "env.sim.h"
+#include "core/core/env.sim.h"
 #include "core/task/task_engine.sim.h"
-#include "sim_clock.h"
+#include "core/utils/sim_clock.h"
 
 namespace dsn {
 namespace tools {

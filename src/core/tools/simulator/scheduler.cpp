@@ -38,7 +38,7 @@
 #include <dsn/service_api_c.h>
 #include <dsn/tool/node_scoper.h>
 #include "scheduler.h"
-#include "env.sim.h"
+#include "core/core/env.sim.h"
 #include <set>
 
 namespace dsn {

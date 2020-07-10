@@ -34,7 +34,7 @@
  */
 
 #include "env.sim.h"
-#include "scheduler.h"
+#include "core/tools/simulator/scheduler.h"
 
 #include <dsn/utility/rand.h>
 
