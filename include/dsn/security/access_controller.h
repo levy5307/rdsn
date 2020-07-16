@@ -134,7 +134,7 @@ public:
 private:
     void register_entries(std::initializer_list<std::string> il, const std::string &mask)
     {
-        for (auto rpc_code : il) {
+        for (const auto &rpc_code : il) {
             _acl_masks[rpc_code] = std::bitset<10>(mask);
         }
     }
@@ -144,7 +144,7 @@ private:
     }
     void register_allpass_entries(std::initializer_list<std::string> il)
     {
-        for (auto rpc_code : il) {
+        for (const auto &rpc_code : il) {
             _all_pass.insert(rpc_code);
         }
     }
@@ -158,5 +158,5 @@ private:
 
     rcu_map _cached_app_acls;
 };
-}
-}
+} // namespace security
+} // namespace dsn

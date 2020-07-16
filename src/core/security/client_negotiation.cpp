@@ -1,39 +1,17 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2015 Microsoft Corporation
- *
- * -=- Robust Distributed System Nucleus (rDSN) -=-
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+// Copyright (c) 2017, Xiaomi, Inc.  All rights reserved.
+// This source code is licensed under the Apache License Version 2.0, which
+// can be found in the LICENSE file in the root directory of this source tree.
 
-#include <fmt/format.h>
 #include <dsn/tool-api/rpc_address.h>
 #include <dsn/security/init.h>
 #include <dsn/security/client_negotiation.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace security {
 
 // TODO: read expected mechanisms from config file
-static const std::vector<std::string> expected_mechanisms{"GSSAPI"};
+static const std::set<std::string> expected_mechanisms{"GSSAPI"};
 
 client_negotiation::client_negotiation(rpc_session *session)
     : _session(session), _user_name("unknown"), _status(negotiation_status::SASL_LIST_MECHANISMS)
@@ -45,7 +23,7 @@ client_negotiation::client_negotiation(rpc_session *session)
 
 void client_negotiation::start_negotiate()
 {
-    ddebug("%s: start negotiation", _name.c_str());
+    ddebug_f("{}: start negotiation", _name);
     list_mechanisms();
 }
 
@@ -82,38 +60,36 @@ void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
     dsn::unmarshall(mechs_msg, resp);
 
     if (resp.status != negotiation_status::SASL_LIST_MECHANISMS_RESP) {
-        dwarn("%s: got message(%s) while expect(%s), reason(%s)",
-              _name.c_str(),
-              enum_to_string(resp.status),
-              enum_to_string(negotiation_status::SASL_LIST_MECHANISMS_RESP));
+        dwarn_f("{}: got message({}) while expect({})",
+                _name,
+                enum_to_string(resp.status),
+                enum_to_string(negotiation_status::SASL_LIST_MECHANISMS_RESP));
         fail_negotiation();
         return;
     }
 
-    bool found_mechanisms = false;
+    std::string matched_mechanism = "";
     std::vector<std::string> supported_mechanisms;
     std::string resp_string = resp.msg.to_string();
     dsn::utils::split_args(resp_string.c_str(), supported_mechanisms, ',');
 
-    for (const std::string &s : supported_mechanisms) {
-        if (s == expected_mechanisms[0]) {
-            ddebug("%s: found %s mech in server, use it",
-                   _name.c_str(),
-                   expected_mechanisms[0].c_str());
-            found_mechanisms = true;
+    for (const std::string &supported_mechanism : supported_mechanisms) {
+        if (expected_mechanisms.find(supported_mechanism) != expected_mechanisms.end()) {
+            ddebug_f("{}: found {} mechanism in server, use it", _name, supported_mechanism);
+            matched_mechanism = supported_mechanism;
             break;
         }
     }
 
-    if (!found_mechanisms) {
-        dwarn("%s: server only support mechs of (%s), can't find expected (%s)",
-              resp_string.c_str(),
-              join(expected_mechanisms.begin(), expected_mechanisms.end(), ",").c_str());
+    if (matched_mechanism.empty()) {
+        dwarn_f("server only support mechanisms of ({}), can't find expected ({})",
+                resp_string,
+                join(expected_mechanisms.begin(), expected_mechanisms.end(), ","));
         fail_negotiation();
         return;
     }
 
-    select_mechanism(expected_mechanisms[0]);
+    select_mechanism(matched_mechanism);
 }
 
 void client_negotiation::select_mechanism(dsn::string_view mech)
@@ -134,11 +110,11 @@ void client_negotiation::mechanism_selected(const message_ptr &mechs_msg)
     if (resp.status == negotiation_status::SASL_SELECT_MECHANISMS_OK) {
         initiate_negotiation();
     } else {
-        dwarn("%s: select mechanism(%s) from server failed, type(%s), reason(%s)",
-              _name.c_str(),
-              _selected_mechanism.c_str(),
-              enum_to_string(resp.status),
-              resp.msg.to_string().c_str());
+        dwarn_f("{}: select mechanism({}) from server failed, type({}), reason({})",
+                _name,
+                _selected_mechanism,
+                enum_to_string(resp.status),
+                resp.msg.to_string());
         fail_negotiation();
     }
 }
@@ -147,11 +123,11 @@ void client_negotiation::initiate_negotiation()
 {
     error_s err_s = do_sasl_client_init();
     if (!err_s.is_ok()) {
-        dassert(false,
-                "%s: initiaze sasl client failed, error = %s, reason = %s",
-                _name.c_str(),
-                err_s.code().to_string(),
-                err_s.description().c_str());
+        dassert_f(false,
+                  "{}: initiaze sasl client failed, error = {}, reason = {}",
+                  _name,
+                  err_s.code().to_string(),
+                  err_s.description());
         fail_negotiation();
         return;
     }
@@ -159,18 +135,17 @@ void client_negotiation::initiate_negotiation()
     err_s = send_sasl_initiate_msg();
 
     error_code code = err_s.code();
-    std::string desc = err_s.description();
+    const std::string &desc = err_s.description();
 
     if (code == ERR_AUTH_NEGO_FAILED && desc.find("Ticket expired") != std::string::npos) {
-        derror("%s: start client negotiation with ticket expire, waiting on ticket renew",
-               _name.c_str());
+        derror_f("{}: start client negotiation with ticket expire, waiting on ticket renew", _name);
         fail_negotiation();
     } else if (code != ERR_OK && code != ERR_INCOMPLETE) {
-        dassert(false,
-                "%s: client_negotiation: send sasl_client_start failed, error = %s, reason = %s",
-                _name.c_str(),
-                code.to_string(),
-                desc.c_str());
+        dassert_f(false,
+                  "{}: client_negotiation: send sasl_client_start failed, error = {}, reason = {}",
+                  _name,
+                  code.to_string(),
+                  desc);
         fail_negotiation();
     }
 }
@@ -202,6 +177,7 @@ error_s client_negotiation::send_sasl_initiate_msg()
     const char *client_mech = nullptr;
 
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
+        // TODO(zhaoliwei): to make sure whether we should release msg or not
         return sasl_client_start(
             _sasl_conn.get(), _selected_mechanism.data(), nullptr, &msg, &msg_len, &client_mech);
     });
@@ -219,6 +195,7 @@ error_s client_negotiation::send_sasl_initiate_msg()
 
 error_s client_negotiation::retrive_user_name_from_sasl_conn(std::string &output)
 {
+    // TODO(zhaoliwei): to make sure whether we should release usename or not
     char *username = nullptr;
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
         return sasl_getprop(_sasl_conn.get(), SASL_USERNAME, (const void **)&username);
@@ -234,6 +211,7 @@ error_s client_negotiation::retrive_user_name_from_sasl_conn(std::string &output
 
 error_s client_negotiation::do_sasl_step(const dsn::blob &input, blob &output)
 {
+    // TODO(zhaoliwei): to make sure whether we should release msg or not
     const char *msg = nullptr;
     unsigned msg_len = 0;
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
@@ -248,14 +226,14 @@ error_s client_negotiation::do_sasl_step(const dsn::blob &input, blob &output)
 void client_negotiation::handle_message_from_server(message_ptr msg)
 {
     if (msg->error() == ERR_HANDLER_NOT_FOUND && !_session->mandantory_auth()) {
-        dwarn("%s: treat negotiation succeed as server doesn't support it, user_name in later "
-              "messages aren't trustable",
-              _name.c_str());
+        dwarn_f("{}: treat negotiation succeed as server doesn't support it, user_name in later "
+                "messages aren't trustable",
+                _name);
         succ_negotiation();
         return;
     }
     if (msg->error() != ERR_OK) {
-        derror("%s: negotiation failed, error = %s", _name.c_str(), msg->error().to_string());
+        derror_f("{}: negotiation failed, error = {}", _name, msg->error().to_string());
         fail_negotiation();
         return;
     }
@@ -276,7 +254,7 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
     dsn::unmarshall(challenge_msg, challenge);
 
     if (challenge.status == negotiation_status::type::SASL_AUTH_FAIL) {
-        dwarn("%s: auth failed, reason(%s)", _name.c_str(), challenge.msg.to_string().c_str());
+        dwarn_f("{}: auth failed, reason({})", _name, challenge.msg.to_string());
         fail_negotiation();
         return;
     }
@@ -285,9 +263,7 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
         dsn::blob response_msg;
         error_s err_s = do_sasl_step(challenge.msg, response_msg);
         if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
-            derror("%s: negotiation failed locally, reason = %s",
-                   _name.c_str(),
-                   err_s.description().c_str());
+            derror_f("{}: negotiation failed locally, reason = {}", _name, err_s.description());
             fail_negotiation();
             return;
         }
@@ -300,19 +276,17 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
     }
 
     if (challenge.status == negotiation_status::type::SASL_SUCC) {
-        ddebug("%s: negotiation succ", _name.c_str());
+        ddebug_f("{}: negotiation succ", _name);
         error_s err = retrive_user_name_from_sasl_conn(_user_name);
-        dassert(err.is_ok(),
-                "%s: can't get user name for completed connection reason (%s)",
-                _name.c_str(),
-                err.description().c_str());
+        dassert_f(err.is_ok(),
+                  "{}: can't get user name for completed connection reason ({})",
+                  _name,
+                  err.description());
         succ_negotiation();
         return;
     }
 
-    derror("%s: recv wrong negotiation msg, type = %s",
-           _name.c_str(),
-           enum_to_string(challenge.status));
+    derror_f("{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(challenge.status));
     fail_negotiation();
 }
 

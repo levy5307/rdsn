@@ -1,32 +1,11 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2015 Microsoft Corporation
- *
- * -=- Robust Distributed System Nucleus (rDSN) -=-
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+// Copyright (c) 2017, Xiaomi, Inc.  All rights reserved.
+// This source code is licensed under the Apache License Version 2.0, which
+// can be found in the LICENSE file in the root directory of this source tree.
 
 #include <dsn/security/access_controller.h>
 
 #include <sstream>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace security {
@@ -117,10 +96,10 @@ void access_controller::load_config(const std::string &super_user,
     _super_user = super_user;
     _open_auth = open_auth;
     _mandatory_auth = mandatory_auth;
-    ddebug("load superuser(%s), open_auth(%d), mandatory_auth(%d)",
-           super_user.c_str(),
-           open_auth,
-           mandatory_auth);
+    ddebug_f("load superuser({}), open_auth({}), mandatory_auth({})",
+             super_user,
+             open_auth,
+             mandatory_auth);
 }
 
 // for meta
@@ -147,14 +126,14 @@ bool access_controller::app_level_check(const std::string &rpc_code,
 {
     auto mask_iter = _acl_masks.find(rpc_code);
     if (mask_iter == _acl_masks.end()) {
-        ddebug("rpc_code %s is not registered", rpc_code.c_str());
+        ddebug_f("rpc_code {} is not registered", rpc_code);
         return false;
     }
-    auto &mask = mask_iter->second;
+    const auto &mask = mask_iter->second;
 
     auto user_pos = std::string::npos;
     if ((user_pos = acl_entries_str.find(user_name)) == std::string::npos) {
-        ddebug("user_name %s doesn't exist in acl_entries_str", user_name.c_str());
+        ddebug_f("user_name {} doesn't exist in acl_entries_str", user_name);
         return false;
     }
     auto end = acl_entries_str.find(";", user_pos);
@@ -179,11 +158,11 @@ bool access_controller::bit_check(const int app_id, const std::string &user_name
 
     auto app_acl = _cached_app_acls.find(app_id);
     if (app_acl == _cached_app_acls.end()) {
-        ddebug("app_acl(id %d) is empty, acl deny", app_id);
+        ddebug_f("app_acl(id {}) is empty, acl deny", app_id);
     } else {
         auto entry = app_acl->second.find(user_name);
         if (entry == app_acl->second.end()) {
-            ddebug("user_name %s doesn't exist in app_acl(id %d)", user_name.c_str(), app_id);
+            ddebug_f("user_name {} doesn't exist in app_acl(id {})", user_name, app_id);
         } else {
             auto permission = entry->second;
             ret = std::bitset<10>(permission)[static_cast<int>(bit)];
@@ -192,5 +171,5 @@ bool access_controller::bit_check(const int app_id, const std::string &user_name
 
     return ret;
 }
-}
-}
+} // namespace security
+} // namespace dsn

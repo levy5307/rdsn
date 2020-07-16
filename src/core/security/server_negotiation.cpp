@@ -1,33 +1,11 @@
-/*
- * The MIT License (MIT)
- *
- * Copyright (c) 2015 Microsoft Corporation
- *
- * -=- Robust Distributed System Nucleus (rDSN) -=-
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+// Copyright (c) 2017, Xiaomi, Inc.  All rights reserved.
+// This source code is licensed under the Apache License Version 2.0, which
+// can be found in the LICENSE file in the root directory of this source tree.
 
-#include <fmt/format.h>
 #include <dsn/tool-api/rpc_address.h>
 #include <dsn/security/init.h>
 #include <dsn/security/server_negotiation.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace security {
@@ -42,7 +20,7 @@ server_negotiation::server_negotiation(rpc_session *session)
                         _session->remote_address().to_string());
 }
 
-void server_negotiation::start_negotiate() { ddebug("%s: start negotiation", _name.c_str()); }
+void server_negotiation::start_negotiate() { ddebug_f("{}: start negotiation", _name); }
 
 void server_negotiation::reply(const message_ptr &req, const negotiation_message &response_data)
 {
@@ -84,16 +62,16 @@ void server_negotiation::on_list_mechanisms(const message_ptr &m)
     dsn::unmarshall(m, request);
     if (request.status == negotiation_status::SASL_LIST_MECHANISMS) {
         std::string mech_list = join(supported_mechanisms.begin(), supported_mechanisms.end(), ",");
-        ddebug("%s: reply server mechs(%s)", _name.c_str(), mech_list.c_str());
+        ddebug_f("{}: reply server mechs({})", _name, mech_list);
         negotiation_message response;
         response.status = negotiation_status::SASL_LIST_MECHANISMS_RESP;
         response.msg = dsn::blob::create_from_bytes(std::move(mech_list));
         reply(m, response);
     } else {
-        dwarn("%s: got message(%s) while expect(%s)",
-              _name.c_str(),
-              enum_to_string(request.status),
-              negotiation_status::SASL_LIST_MECHANISMS);
+        dwarn_f("{}: got message({}) while expect({})",
+                _name,
+                enum_to_string(request.status),
+                negotiation_status::SASL_LIST_MECHANISMS);
         fail_negotiation(m, "invalid_client_message_status");
     }
 }
@@ -104,15 +82,15 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
     dsn::unmarshall(m, request);
     if (request.status == negotiation_status::SASL_SELECT_MECHANISMS) {
         _selected_mechanism = request.msg.to_string();
-        ddebug("%s: client select mechanism(%s)", _name.c_str(), _selected_mechanism.c_str());
+        ddebug_f("{}: client select mechanism({})", _name, _selected_mechanism);
         dassert(_selected_mechanism == "GSSAPI", "only gssapi supported");
 
         error_s err_s = do_sasl_server_init();
         if (!err_s.is_ok()) {
-            dwarn("%s: server initialize sasl failed, error = %s, msg = %s",
-                  _name.c_str(),
-                  err_s.code().to_string(),
-                  err_s.description().c_str());
+            dwarn_f("{}: server initialize sasl failed, error = {}, msg = {}",
+                    _name,
+                    err_s.code().to_string(),
+                    err_s.description());
             fail_negotiation(m, err_s.description());
             return;
         }
@@ -121,10 +99,10 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
         response.status = negotiation_status::SASL_SELECT_MECHANISMS_OK;
         reply(m, response);
     } else {
-        dwarn("%s: got message(%s) while expect(%s)",
-              _name.c_str(),
-              enum_to_string(request.status),
-              negotiation_status::SASL_SELECT_MECHANISMS);
+        dwarn_f("{}: got message({}) while expect({})",
+                _name,
+                enum_to_string(request.status),
+                negotiation_status::SASL_SELECT_MECHANISMS);
         fail_negotiation(m, "invalid_client_message_status");
     }
 }
@@ -209,15 +187,15 @@ void server_negotiation::handle_message_from_client(message_ptr msg)
 
 void server_negotiation::handle_client_response_on_challenge(const message_ptr &req)
 {
-    dinfo("%s: recv response negotiation message from client", _name.c_str());
+    dinfo_f("{}: recv response negotiation message from client", _name);
     negotiation_message client_message;
     dsn::unmarshall(req, client_message);
 
     if (client_message.status != negotiation_status::SASL_INITIATE &&
         client_message.status != negotiation_status::SASL_RESPONSE) {
-        derror("%s: recv wrong negotiation msg, type = %s",
-               _name.c_str(),
-               enum_to_string(client_message.status));
+        derror_f("{}: recv wrong negotiation msg, type = {}",
+                 _name,
+                 enum_to_string(client_message.status));
         fail_negotiation(req, "invalid_client_message_type");
         return;
     }
@@ -231,18 +209,18 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
     }
 
     if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
-        dwarn("%s: negotiation failed locally, with err = %s, msg = %s",
-              _name.c_str(),
-              err_s.code().to_string(),
-              err_s.description().c_str());
+        dwarn_f("{}: negotiation failed locally, with err = {}, msg = {}",
+                _name,
+                err_s.code().to_string(),
+                err_s.description());
         fail_negotiation(req, err_s.description());
         return;
     }
 
     if (err_s.code() == ERR_OK) {
         error_s err = retrive_user_name_from_sasl_conn(_user_name);
-        dassert(err.is_ok(), "%s: unexpected result(%s)", _name.c_str(), err.description().c_str());
-        ddebug("%s: negotiation succ for user(%s)", _name.c_str(), _user_name.c_str());
+        dassert_f(err.is_ok(), "{}: unexpected result({})", _name, err.description());
+        ddebug_f("{}: negotiation succ for user({})", _name, _user_name);
         succ_negotiation(req);
     } else {
         negotiation_message challenge;
