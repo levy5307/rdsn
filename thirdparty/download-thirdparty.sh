@@ -272,17 +272,21 @@ elif [ $ret_code -eq 0 ]; then
 fi
 
 # krb5
-check_and_download "krb5-1.16.1.tar.gz" \
-    "http://web.mit.edu/kerberos/dist/krb5/1.16/krb5-1.16.1.tar.gz" \
+KRB5_NAME=krb5-1.16.1
+KRB5_PKG=${KRB5_NAME}.tar.gz
+check_and_download "${KRB5_PKG}" \
+    "${OSS_URL_PREFIX}/${KRB5_PKG}" \
     "848e9b80d6aaaa798e3f3df24b83c407" \
-    "krb5-1.16.1"
+    "${KRB5_NAME}"
 exit_if_fail $?
 
 # cyrus-sasl
-check_and_download "cyrus-sasl-2.1.27-rc8.tar.gz" \
-    "http://www.cyrusimap.org/releases/cyrus-sasl-2.1.27-rc8.tar.gz" \
-    "c34dd4034dcfd4760a90acadb9e0b6b7" \
-    "cyrus-sasl-2.1.27"
+CYRUS_SASL_NAME=cyrus-sasl-2.1.27
+CYRUS_SASL_PKG=${CYRUS_SASL_NAME}.tar.gz
+check_and_download "${CYRUS_SASL_PKG}" \
+    "${OSS_URL_PREFIX}/${CYRUS_SASL_PKG}" \
+    "a33820c66e0622222c5aefafa1581083" \
+    "${CYRUS_SASL_NAME}"
 exit_if_fail $?
 
 cd $TP_DIR
