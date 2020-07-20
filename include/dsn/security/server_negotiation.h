@@ -38,7 +38,7 @@ public:
     void start_negotiate();
     void handle_message_from_client(message_ptr msg);
     const char *user_name() const { return _user_name.c_str(); }
-    bool negotiation_succeed() const { return _status == negotiation_status::SASL_SUCC; }
+    bool negotiation_succeed() const { return _status == negotiation_status::type::SASL_SUCC; }
 
 private:
     error_s do_sasl_server_init();
