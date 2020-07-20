@@ -38,7 +38,7 @@ public:
     // implementation of 'kinit -k -t <keytab_file> <principal>'
     error_s kinit(const std::string &keytab_file, const std::string &principal);
 
-    std::string username() { return _username_str; }
+    std::string username() { return _username; }
 
     std::string service_fqdn() { return _service_fqdn; }
 
@@ -53,7 +53,7 @@ private:
 
     // principal and username that logged in as, this determines "who I am"
     std::string _principal_name;
-    std::string _username_str;
+    std::string _username;
 
     // used for determine the remote service, this determines "who will I visit"
     std::string _service_fqdn;
@@ -246,7 +246,7 @@ error_s kinit_context::get_formatted_identities()
     auto cleanup = dsn::defer([&]() { krb5_free_unparsed_name(g_krb5_context, tmp_str); });
     _principal_name = tmp_str;
 
-    return parse_username_from_principal(_principal, _username_str);
+    return parse_username_from_principal(_principal, _username);
 }
 
 error_s kinit_context::kinit(const std::string &keytab_file, const std::string &principal)
@@ -280,7 +280,7 @@ error_s kinit_context::kinit(const std::string &keytab_file, const std::string &
 
     ddebug("logged in from keytab as %s, local username %s",
            _principal_name.c_str(),
-           _username_str.c_str());
+           _username.c_str());
 
     _service_fqdn =
         dsn_config_get_value_string("security", "service_fqdn", "pegasus", "service fqdn");

@@ -177,7 +177,6 @@ error_s client_negotiation::send_sasl_initiate_msg()
     const char *client_mech = nullptr;
 
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        // TODO(zhaoliwei): to make sure whether we should release msg or not
         return sasl_client_start(
             _sasl_conn.get(), _selected_mechanism.data(), nullptr, &msg, &msg_len, &client_mech);
     });
