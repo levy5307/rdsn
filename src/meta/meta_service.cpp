@@ -122,6 +122,14 @@ int meta_service::check_leader(TRpcHolder rpc, rpc_address *forward_address)
 template <typename TRpcHolder>
 bool meta_service::check_status(TRpcHolder rpc, rpc_address *forward_address)
 {
+    // first we should check whether this user has the permission to access this rpc
+    message_ex *dsn_msg = rpc.dsn_request();
+    if (!_state->acl_check(std::string(dsn_msg->rpc_code().to_string()), dsn_msg->user_name)) {
+        rpc.response().err = ERR_ACL_DENY;
+        ddebug_f("reject request with {}", rpc.response().err.to_string());
+        return false;
+    }
+
     int result = check_leader(rpc, forward_address);
     if (result == 0)
         return false;
@@ -133,7 +141,7 @@ bool meta_service::check_status(TRpcHolder rpc, rpc_address *forward_address)
         } else {
             rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
         }
-        ddebug("reject request with %s", rpc.response().err.to_string());
+        ddebug_f("reject request with {}", rpc.response().err.to_string());
         return false;
     }
 
@@ -476,6 +484,12 @@ int meta_service::check_leader(dsn::message_ex *req, dsn::rpc_address *forward_a
  * Because it will cause the response to be sent repeatedly
  */
 #define RPC_CHECK_STATUS(dsn_msg, response_struct)                                                 \
+    if (!_state->acl_check(std::string(dsn_msg->rpc_code().to_string()), dsn_msg->user_name)) {    \
+        response_struct.err = ERR_ACL_DENY;                                                        \
+        ddebug_f("reject request with {}", response_struct.err.to_string());                       \
+        reply(dsn_msg, response_struct);                                                           \
+        return;                                                                                    \
+    }                                                                                              \
     int result = check_leader(dsn_msg, nullptr);                                                   \
     if (result == 0)                                                                               \
         return;                                                                                    \
@@ -486,20 +500,14 @@ int meta_service::check_leader(dsn::message_ex *req, dsn::rpc_address *forward_a
             response_struct.err = ERR_UNDER_RECOVERY;                                              \
         else                                                                                       \
             response_struct.err = ERR_SERVICE_NOT_ACTIVE;                                          \
-        ddebug("reject request with %s", response_struct.err.to_string());                         \
+        ddebug_f("reject request with {}", response_struct.err.to_string());                       \
         reply(dsn_msg, response_struct);                                                           \
         return;                                                                                    \
     }                                                                                              \
-    dinfo("rpc_code %s called, with user name(%s), app_id(%d) may be useless",                     \
-          dsn_msg->rpc_code().to_string(),                                                         \
-          dsn_msg->user_name.c_str(),                                                              \
-          dsn_msg->header->gpid.get_app_id());                                                     \
-    if (!_state->acl_check(std::string(dsn_msg->rpc_code().to_string()), dsn_msg->user_name)) {    \
-        response_struct.err = ERR_ACL_DENY;                                                        \
-        ddebug("reject request with %s", response_struct.err.to_string());                         \
-        reply(dsn_msg, response_struct);                                                           \
-        return;                                                                                    \
-    }
+    dinfo_f("rpc_code {} called, with user name({}), app_id({}) may be useless",                   \
+            dsn_msg->rpc_code().to_string(),                                                       \
+            dsn_msg->user_name,                                                                    \
+            dsn_msg->header->gpid.get_app_id());
 
 // table operations
 void meta_service::on_create_app(dsn::message_ex *req)
@@ -860,10 +868,11 @@ void meta_service::on_add_duplication(duplication_add_rpc rpc)
         rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
         return;
     }
-    tasking::enqueue(LPC_META_STATE_NORMAL,
-                     tracker(),
-                     [this, rpc]() { _dup_svc->add_duplication(std::move(rpc)); },
-                     server_state::sStateHash);
+    tasking::enqueue(
+        LPC_META_STATE_NORMAL,
+        tracker(),
+        [this, rpc]() { _dup_svc->add_duplication(std::move(rpc)); },
+        server_state::sStateHash);
 }
 
 void meta_service::on_modify_duplication(duplication_modify_rpc rpc)
@@ -876,10 +885,11 @@ void meta_service::on_modify_duplication(duplication_modify_rpc rpc)
         rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
         return;
     }
-    tasking::enqueue(LPC_META_STATE_NORMAL,
-                     tracker(),
-                     [this, rpc]() { _dup_svc->modify_duplication(std::move(rpc)); },
-                     server_state::sStateHash);
+    tasking::enqueue(
+        LPC_META_STATE_NORMAL,
+        tracker(),
+        [this, rpc]() { _dup_svc->modify_duplication(std::move(rpc)); },
+        server_state::sStateHash);
 }
 
 void meta_service::on_query_duplication_info(duplication_query_rpc rpc)
@@ -901,16 +911,17 @@ void meta_service::on_duplication_sync(duplication_sync_rpc rpc)
         return;
     }
 
-    tasking::enqueue(LPC_META_STATE_NORMAL,
-                     tracker(),
-                     [this, rpc]() {
-                         if (_dup_svc) {
-                             _dup_svc->duplication_sync(std::move(rpc));
-                         } else {
-                             rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
-                         }
-                     },
-                     server_state::sStateHash);
+    tasking::enqueue(
+        LPC_META_STATE_NORMAL,
+        tracker(),
+        [this, rpc]() {
+            if (_dup_svc) {
+                _dup_svc->duplication_sync(std::move(rpc));
+            } else {
+                rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
+            }
+        },
+        server_state::sStateHash);
 }
 
 void meta_service::recover_duplication_from_meta_state()
@@ -990,10 +1001,11 @@ void meta_service::on_app_partition_split(app_partition_split_rpc rpc)
         return;
     }
 
-    tasking::enqueue(LPC_META_STATE_NORMAL,
-                     tracker(),
-                     [this, rpc]() { _split_svc->app_partition_split(std::move(rpc)); },
-                     server_state::sStateHash);
+    tasking::enqueue(
+        LPC_META_STATE_NORMAL,
+        tracker(),
+        [this, rpc]() { _split_svc->app_partition_split(std::move(rpc)); },
+        server_state::sStateHash);
 }
 
 void meta_service::on_register_child_on_meta(register_child_rpc rpc)
@@ -1002,10 +1014,11 @@ void meta_service::on_register_child_on_meta(register_child_rpc rpc)
         return;
     }
 
-    tasking::enqueue(LPC_META_STATE_NORMAL,
-                     tracker(),
-                     [this, rpc]() { _split_svc->register_child_on_meta(std::move(rpc)); },
-                     server_state::sStateHash);
+    tasking::enqueue(
+        LPC_META_STATE_NORMAL,
+        tracker(),
+        [this, rpc]() { _split_svc->register_child_on_meta(std::move(rpc)); },
+        server_state::sStateHash);
 }
 
 void meta_service::on_start_bulk_load(start_bulk_load_rpc rpc)
@@ -1033,10 +1046,11 @@ void meta_service::on_control_bulk_load(control_bulk_load_rpc rpc)
         rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
         return;
     }
-    tasking::enqueue(LPC_META_STATE_NORMAL,
-                     tracker(),
-                     [this, rpc]() { _bulk_load_svc->on_control_bulk_load(std::move(rpc)); },
-                     server_state::sStateHash);
+    tasking::enqueue(
+        LPC_META_STATE_NORMAL,
+        tracker(),
+        [this, rpc]() { _bulk_load_svc->on_control_bulk_load(std::move(rpc)); },
+        server_state::sStateHash);
 }
 
 void meta_service::on_query_bulk_load_status(query_bulk_load_rpc rpc)
