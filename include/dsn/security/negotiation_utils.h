@@ -40,28 +40,28 @@ struct sasl_deleter
     void operator()(sasl_conn_t *conn) { sasl_dispose(&conn); }
 };
 
-inline const char *enum_to_string(negotiation_status::type s)
+inline const char *enum_to_string(negotiation_status s)
 {
     switch (s) {
-    case negotiation_status::type::SASL_LIST_MECHANISMS:
+    case negotiation_status::NS_LIST_MECHANISMS:
         return "negotiation_list_mechanisms";
-    case negotiation_status::type::SASL_LIST_MECHANISMS_RESP:
+    case negotiation_status::NS_LIST_MECHANISMS_RESP:
         return "negotiation_list_mechanisms_resp";
-    case negotiation_status::type::SASL_SELECT_MECHANISMS:
+    case negotiation_status::NS_SELECT_MECHANISMS:
         return "negotiation_select_mechanisms";
-    case negotiation_status::type::SASL_SELECT_MECHANISMS_OK:
+    case negotiation_status::NS_SELECT_MECHANISMS_OK:
         return "negotiation_select_mechanisms_ok";
-    case negotiation_status::type::SASL_SUCC:
+    case negotiation_status::NS_SUCC:
         return "negotiation_succ";
-    case negotiation_status::type::SASL_AUTH_FAIL:
+    case negotiation_status::NS_FAIL:
         return "negotiation_auth_fail";
-    case negotiation_status::type::SASL_INITIATE:
+    case negotiation_status::NS_INITIATE:
         return "negotiation_initiate";
-    case negotiation_status::type::SASL_CHALLENGE:
+    case negotiation_status::NS_CHALLENGE:
         return "negotiation_challenge";
-    case negotiation_status::type::SASL_RESPONSE:
+    case negotiation_status::NS_RESPONSE:
         return "negotiation_response";
-    case negotiation_status::type::INVALID:
+    case negotiation_status::NS_INVALID:
         return "negotiation_invalid";
     }
     return "negotiation-unkown";

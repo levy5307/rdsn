@@ -21,23 +21,23 @@ namespace cpp dsn.security
 //                          | --- SASL_RESP --> |
 //                          |                   | (authentication will succeed
 //                          |                   |  if all chanllenges passed)
-//                          | <-- SASL_SUCC --- |
+//                          | <-- NS_SUCC --- |
 // (client won't response   |                   |
 // if servers says ok)      |                   |
 //                          | --- RPC_CALL ---> |
 //                          | <-- RPC_RESP ---- |
 
 enum negotiation_status {
-    INVALID = 0,
-    SASL_LIST_MECHANISMS,
-    SASL_LIST_MECHANISMS_RESP,
-    SASL_SELECT_MECHANISMS,
-    SASL_SELECT_MECHANISMS_OK,
-    SASL_INITIATE,
-    SASL_CHALLENGE,
-    SASL_RESPONSE,
-    SASL_SUCC,
-    SASL_AUTH_FAIL
+    NS_INVALID = 0,
+    NS_LIST_MECHANISMS,
+    NS_LIST_MECHANISMS_RESP,
+    NS_SELECT_MECHANISMS,
+    NS_SELECT_MECHANISMS_OK,
+    NS_INITIATE,
+    NS_CHALLENGE,
+    NS_RESPONSE,
+    NS_SUCC,
+    NS_FAIL
 }
 
 struct negotiation_message {
