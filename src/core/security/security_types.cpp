@@ -14,16 +14,16 @@
 namespace dsn {
 namespace security {
 
-int _knegotiation_statusValues[] = {negotiation_status::NS_INVALID,
-                                    negotiation_status::NS_LIST_MECHANISMS,
-                                    negotiation_status::NS_LIST_MECHANISMS_RESP,
-                                    negotiation_status::NS_SELECT_MECHANISMS,
-                                    negotiation_status::NS_SELECT_MECHANISMS_OK,
-                                    negotiation_status::NS_INITIATE,
-                                    negotiation_status::NS_CHALLENGE,
-                                    negotiation_status::NS_RESPONSE,
-                                    negotiation_status::NS_SUCC,
-                                    negotiation_status::NS_FAIL};
+int _knegotiation_statusValues[] = {negotiation_status::type::INVALID,
+                                    negotiation_status::type::SASL_LIST_MECHANISMS,
+                                    negotiation_status::type::SASL_LIST_MECHANISMS_RESP,
+                                    negotiation_status::type::SASL_SELECT_MECHANISMS,
+                                    negotiation_status::type::SASL_SELECT_MECHANISMS_OK,
+                                    negotiation_status::type::SASL_INITIATE,
+                                    negotiation_status::type::SASL_CHALLENGE,
+                                    negotiation_status::type::SASL_RESPONSE,
+                                    negotiation_status::type::SASL_SUCC,
+                                    negotiation_status::type::SASL_AUTH_FAIL};
 const char *_knegotiation_statusNames[] = {"INVALID",
                                            "SASL_LIST_MECHANISMS",
                                            "SASL_LIST_MECHANISMS_RESP",
@@ -40,7 +40,7 @@ const std::map<int, const char *> _negotiation_status_VALUES_TO_NAMES(
 
 negotiation_message::~negotiation_message() throw() {}
 
-void negotiation_message::__set_status(const negotiation_status val) { this->status = val; }
+void negotiation_message::__set_status(const negotiation_status::type val) { this->status = val; }
 
 void negotiation_message::__set_msg(const ::dsn::blob &val) { this->msg = val; }
 
@@ -67,7 +67,7 @@ uint32_t negotiation_message::read(::apache::thrift::protocol::TProtocol *iprot)
             if (ftype == ::apache::thrift::protocol::T_I32) {
                 int32_t ecast0;
                 xfer += iprot->readI32(ecast0);
-                this->status = (negotiation_status)ecast0;
+                this->status = (negotiation_status::type)ecast0;
                 this->__isset.status = true;
             } else {
                 xfer += iprot->skip(ftype);

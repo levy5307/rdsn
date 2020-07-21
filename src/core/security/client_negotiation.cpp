@@ -16,7 +16,7 @@ static const std::set<std::string> expected_mechanisms{"GSSAPI"};
 client_negotiation::client_negotiation(rpc_session *session)
     : _session(session),
       _user_name("unknown"),
-      _status(negotiation_status::NS_LIST_MECHANISMS)
+      _status(negotiation_status::type::SASL_LIST_MECHANISMS)
 {
     _name = fmt::format("C_NEGO_L({})=>R({})",
                         _session->local_address().to_string(),
@@ -39,20 +39,20 @@ void client_negotiation::send(const negotiation_message &n)
 
 void client_negotiation::fail_negotiation()
 {
-    _status = negotiation_status::NS_FAIL;
+    _status = negotiation_status::type::SASL_AUTH_FAIL;
     _session->complete_negotiation(false);
 }
 
 void client_negotiation::succ_negotiation()
 {
-    _status = negotiation_status::NS_SUCC;
+    _status = negotiation_status::type::SASL_SUCC;
     _session->complete_negotiation(true);
 }
 
 void client_negotiation::list_mechanisms()
 {
     negotiation_message req;
-    req.status = negotiation_status::NS_LIST_MECHANISMS;
+    req.status = negotiation_status::type::SASL_LIST_MECHANISMS;
     send(req);
 }
 
@@ -61,11 +61,11 @@ void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
     negotiation_message resp;
     dsn::unmarshall(mechs_msg, resp);
 
-    if (resp.status != negotiation_status::NS_LIST_MECHANISMS_RESP) {
+    if (resp.status != negotiation_status::type::SASL_LIST_MECHANISMS_RESP) {
         dwarn_f("{}: got message({}) while expect({})",
                 _name,
                 enum_to_string(resp.status),
-                enum_to_string(negotiation_status::NS_LIST_MECHANISMS_RESP));
+                enum_to_string(negotiation_status::type::SASL_LIST_MECHANISMS_RESP));
         fail_negotiation();
         return;
     }
@@ -99,7 +99,7 @@ void client_negotiation::select_mechanism(dsn::string_view mech)
     _selected_mechanism.assign(mech.data(), mech.length());
 
     negotiation_message req;
-    req.status = negotiation_status::NS_SELECT_MECHANISMS;
+    req.status = negotiation_status::type::SASL_SELECT_MECHANISMS;
     req.msg = dsn::blob::create_from_bytes(mech.data(), mech.length());
 
     send(req);
@@ -109,7 +109,7 @@ void client_negotiation::mechanism_selected(const message_ptr &mechs_msg)
 {
     negotiation_message resp;
     dsn::unmarshall(mechs_msg.get(), resp);
-    if (resp.status == negotiation_status::NS_SELECT_MECHANISMS_OK) {
+    if (resp.status == negotiation_status::type::SASL_SELECT_MECHANISMS_OK) {
         initiate_negotiation();
     } else {
         dwarn_f("{}: select mechanism({}) from server failed, type({}), reason({})",
@@ -186,7 +186,7 @@ error_s client_negotiation::send_sasl_initiate_msg()
     error_code code = err_s.code();
     if (code == ERR_OK || code == ERR_INCOMPLETE) {
         negotiation_message req;
-        req.status = negotiation_status::NS_INITIATE;
+        req.status = negotiation_status::type::SASL_INITIATE;
         req.msg = dsn::blob::create_from_bytes(msg, msg_len);
         send(req);
     }
@@ -238,11 +238,11 @@ void client_negotiation::handle_message_from_server(message_ptr msg)
         fail_negotiation();
         return;
     }
-    if (_status == negotiation_status::NS_LIST_MECHANISMS) {
+    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
         recv_mechanisms(msg);
         return;
     }
-    if (_status == negotiation_status::NS_SELECT_MECHANISMS) {
+    if (_status == negotiation_status::type::SASL_SELECT_MECHANISMS) {
         mechanism_selected(msg);
         return;
     }
@@ -254,13 +254,13 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
     negotiation_message challenge;
     dsn::unmarshall(challenge_msg, challenge);
 
-    if (challenge.status == negotiation_status::NS_FAIL) {
+    if (challenge.status == negotiation_status::type::SASL_AUTH_FAIL) {
         dwarn_f("{}: auth failed, reason({})", _name, challenge.msg.to_string());
         fail_negotiation();
         return;
     }
 
-    if (challenge.status == negotiation_status::NS_CHALLENGE) {
+    if (challenge.status == negotiation_status::type::SASL_CHALLENGE) {
         dsn::blob response_msg;
         error_s err_s = do_sasl_step(challenge.msg, response_msg);
         if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
@@ -270,13 +270,13 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
         }
 
         negotiation_message resp;
-        resp.status = negotiation_status::NS_RESPONSE;
+        resp.status = negotiation_status::type::SASL_RESPONSE;
         resp.msg = response_msg;
         send(resp);
         return;
     }
 
-    if (challenge.status == negotiation_status::NS_SUCC) {
+    if (challenge.status == negotiation_status::type::SASL_SUCC) {
         ddebug_f("{}: negotiation succ", _name);
         error_s err = retrive_user_name_from_sasl_conn(_user_name);
         dassert_f(err.is_ok(),

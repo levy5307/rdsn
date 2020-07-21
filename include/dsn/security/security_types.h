@@ -20,18 +20,21 @@
 namespace dsn {
 namespace security {
 
-enum negotiation_status
+struct negotiation_status
 {
-    NS_INVALID = 0,
-    NS_LIST_MECHANISMS = 1,
-    NS_LIST_MECHANISMS_RESP = 2,
-    NS_SELECT_MECHANISMS = 3,
-    NS_SELECT_MECHANISMS_OK = 4,
-    NS_INITIATE = 5,
-    NS_CHALLENGE = 6,
-    NS_RESPONSE = 7,
-    NS_SUCC = 8,
-    NS_FAIL = 9
+    enum type
+    {
+        INVALID = 0,
+        SASL_LIST_MECHANISMS = 1,
+        SASL_LIST_MECHANISMS_RESP = 2,
+        SASL_SELECT_MECHANISMS = 3,
+        SASL_SELECT_MECHANISMS_OK = 4,
+        SASL_INITIATE = 5,
+        SASL_CHALLENGE = 6,
+        SASL_RESPONSE = 7,
+        SASL_SUCC = 8,
+        SASL_AUTH_FAIL = 9
+    };
 };
 
 extern const std::map<int, const char *> _negotiation_status_VALUES_TO_NAMES;
@@ -52,15 +55,15 @@ public:
     negotiation_message(negotiation_message &&);
     negotiation_message &operator=(const negotiation_message &);
     negotiation_message &operator=(negotiation_message &&);
-    negotiation_message() : status((negotiation_status)0) {}
+    negotiation_message() : status((negotiation_status::type)0) {}
 
     virtual ~negotiation_message() throw();
-    negotiation_status status;
+    negotiation_status::type status;
     ::dsn::blob msg;
 
     _negotiation_message__isset __isset;
 
-    void __set_status(const negotiation_status val);
+    void __set_status(const negotiation_status::type val);
 
     void __set_msg(const ::dsn::blob &val);
 
