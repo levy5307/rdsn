@@ -547,7 +547,7 @@ void meta_service::on_list_apps(configuration_list_apps_rpc rpc)
     configuration_list_apps_response &response = rpc.response();
     _state->list_apps(rpc.request(), response);
 
-    _state->remove_sensitive_info(req->user_name, response);
+    _state->remove_sensitive_info(rpc.dsn_request()->user_name, response);
 }
 
 void meta_service::on_list_nodes(configuration_list_nodes_rpc rpc)
@@ -635,7 +635,8 @@ void meta_service::on_query_configuration_by_index(configuration_query_by_index_
         return;
     }
 
-    if (!_state->acl_check(msg->rpc_code().to_string(), msg->user_name)) {
+    message_ex *req = rpc.dsn_request();
+    if (!_state->acl_check(req->rpc_code().to_string(), req->user_name)) {
         response.err = ERR_ACL_DENY;
         ddebug_f("reject request with {}", response.err.to_string());
     } else {
@@ -751,6 +752,7 @@ void meta_service::on_start_recovery(configuration_recovery_rpc rpc)
     if (result == -1) {
         response.err = ERR_FORWARD_TO_OTHERS;
     } else {
+        message_ex *req = rpc.dsn_request();
         if (!_state->acl_check(std::string(req->rpc_code().to_string()), req->user_name)) {
             response.err = ERR_ACL_DENY;
             ddebug("reject request with %s", response.err.to_string());

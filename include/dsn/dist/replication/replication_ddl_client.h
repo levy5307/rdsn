@@ -188,7 +188,6 @@ public:
     control_bulk_load(const std::string &app_name, const bulk_load_control_type::type control_type);
 
     error_with<query_bulk_load_response> query_bulk_load(const std::string &app_name);
->>>>>>> origin/master
 
 private:
     bool static valid_app_char(int c);

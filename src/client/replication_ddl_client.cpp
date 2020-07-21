@@ -1586,7 +1586,7 @@ dsn::error_code replication_ddl_client::control_acl(const std::string &app_name,
     }
     return set_app_envs(app_name,
                         std::vector<std::string>{security::access_controller::ACL_KEY},
-                        std::vector<std::string>{new_acl.str()});
+                        std::vector<std::string>{new_acl.str()}).get_error().code();
 }
 
 void replication_ddl_client::query_disk_info(

@@ -39,7 +39,7 @@ bool register_remote_command_rpc(const std::string &super_user)
         auto rpc = remote_command_rpc::auto_reply(msg);
 
         if (!super_user.empty() && rpc.dsn_request()->user_name != super_user) {
-            rpc.response().hint_message = "acl deny";
+            //rpc.response().hint_message = "acl deny";
             return;
         }
 

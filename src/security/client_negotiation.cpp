@@ -19,7 +19,7 @@ client_negotiation::client_negotiation(rpc_session *session)
       _status(negotiation_status::type::SASL_LIST_MECHANISMS)
 {
     _name = fmt::format("C_NEGO_L({})=>R({})",
-                        dsn_primary_address().to_string()
+                        dsn_primary_address().to_string(),
                         _session->remote_address().to_string());
 }
 
