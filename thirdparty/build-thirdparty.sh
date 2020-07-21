@@ -6,6 +6,7 @@ function exit_if_fail()
 {
     if [ $2 -ne 0 ]; then
         echo "build $1 failed"
+        echo "please check the command-line output of cmake or make"
         exit $2
     fi
 }
@@ -49,13 +50,24 @@ mkdir -p $TP_OUTPUT/bin
 
 # build concurrentqueue
 if [ ! -d $TP_OUTPUT/include/concurrentqueue ]; then
-    cd $TP_SRC/concurrentqueue-1.0.0-beta
+    cd $TP_SRC/concurrentqueue-1.0.1
     mkdir -p $TP_OUTPUT/include/concurrentqueue
-    cp -R blockingconcurrentqueue.h concurrentqueue.h internal/ $TP_OUTPUT/include/concurrentqueue
+    cp -R blockingconcurrentqueue.h concurrentqueue.h lightweightsemaphore.h internal/ $TP_OUTPUT/include/concurrentqueue
     cd $TP_DIR
     exit_if_fail "concurrentqueue" $?
 else
     echo "skip build concurrentqueue"
+fi
+
+# build readerwriterqueue
+if [ ! -d $TP_OUTPUT/include/readerwriterqueue ]; then
+    cd $TP_SRC/readerwriterqueue-1.0.2
+    mkdir -p $TP_OUTPUT/include/readerwriterqueue
+    cp -R atomicops.h readerwriterqueue.h $TP_OUTPUT/include/readerwriterqueue
+    cd $TP_DIR
+    exit_if_fail "readerwriterqueue" $?
+else
+    echo "skip build readerwriterqueue"
 fi
 
 # build gtest
@@ -76,7 +88,7 @@ fi
 # gperftools
 if [ ! -f $TP_OUTPUT/lib/libtcmalloc.so ]; then
     cd $TP_SRC/gperftools-2.7
-    ./configure --prefix=$TP_OUTPUT --enable-static=no
+    ./configure --prefix=$TP_OUTPUT --enable-static=no --enable-frame-pointers=yes
     make -j8 && make install
     res=$?
     cd $TP_DIR
@@ -104,7 +116,7 @@ if [ ! -d $TP_OUTPUT/include/thrift ]; then
         -DWITH_QT5=OFF\
         -DWITH_QT4=OFF\
         -DWITH_OPENSSL=OFF\
-        -DBUILD_COMPILER=OFF\
+        -DBUILD_COMPILER=ON\
         -DBUILD_TUTORIALS=OFF\
         -DWITH_LIBEVENT=OFF\
         -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT\
@@ -155,7 +167,7 @@ fi
 if [ ! -d $TP_OUTPUT/include/fmt ]; then
     mkdir -p $TP_BUILD/fmt-4.0.0
     cd $TP_BUILD/fmt-4.0.0
-    cmake $TP_SRC/fmt-4.0.0 -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT -DFMT_TEST=false -DCMAKE_CXX_FLAGS="-fPIC"
+    cmake $TP_SRC/fmt-4.0.0 -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT -DFMT_TEST=false -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     make -j8 && make install
     cd $TP_DIR
     exit_if_fail "fmtlib" $?
@@ -167,7 +179,7 @@ fi
 if [ ! -d $TP_OUTPUT/include/Poco ]; then
     mkdir -p $TP_BUILD/poco-1.7.8-release
     cd $TP_BUILD/poco-1.7.8-release
-    CMAKE_FLAGS="-DENABLE_XML=OFF\
+    CMAKE_FLAGS="
     -DENABLE_MONGODB=OFF\
     -DENABLE_PDF=OFF\
     -DENABLE_DATA=OFF\
@@ -290,3 +302,76 @@ else
     echo "skip build cyrus-sasl"
 fi
 
+#build curl
+if [ ! -d $TP_OUTPUT/include/curl ]; then
+    cd $TP_SRC/curl-7.47.0
+    CONFIG_FLAGS="--prefix=$TP_OUTPUT \
+    --disable-dict \
+    --disable-file \
+    --disable-ftp \
+    --disable-gopher \
+    --disable-imap \
+    --disable-ipv6 \
+    --disable-ldap \
+    --disable-ldaps \
+    --disable-manual \
+    --disable-pop3 \
+    --disable-rtsp \
+    --disable-smtp \
+    --disable-telnet \
+    --disable-tftp \
+    --disable-shared \
+    --without-librtmp \
+    --without-zlib \
+    --without-libssh2 \
+    --without-ssl \
+    --without-libidn"
+
+    ./configure $CONFIG_FLAGS
+    make -j8 && make install
+    res=$?
+    cd $TP_DIR
+    exit_if_fail "curl" $res
+else
+    echo "skip build curl"
+fi
+
+#build prometheus-cpp
+if [ ! -d $TP_OUTPUT/include/prometheus ]; then
+    mkdir -p $TP_BUILD/prometheus
+    cd $TP_BUILD/prometheus
+    cmake $TP_SRC/prometheus-cpp-0.7.0 -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT -DENABLE_TESTING=OFF
+    make -j8 && make install
+    res=$?
+    exit_if_fail "prometheus-cpp" $res
+    cd $TP_DIR
+else
+    echo "skip build prometheus-cpp"
+fi
+
+#build nlohmann_json
+if [ ! -d $TP_OUTPUT/include/nlohmann ]; then
+    mv $TP_SRC/nlohmann_json-3.7.3/include/nlohmann $TP_OUTPUT/include
+else
+    echo "skip build nlohmann_json"
+fi
+
+#build rocksdb
+if [ ! -d $TP_OUTPUT/include/rocksdb ]; then
+    mkdir -p $TP_BUILD/rocksdb
+    cd $TP_BUILD/rocksdb
+    cmake $TP_SRC/pegasus-rocksdb-6.6.4-compatible -DCMAKE_INSTALL_PREFIX=$TP_OUTPUT \
+                                                   -DWITH_LZ4=ON \
+                                                   -DWITH_ZSTD=ON \
+                                                   -DWITH_SNAPPY=ON \
+                                                   -DWITH_BZ2=OFF \
+                                                   -DWITH_TESTS=OFF \
+                                                   -DWITH_GFLAGS=OFF \
+                                                   -DUSE_RTTI=ON \
+                                                   -DCMAKE_BUILD_TYPE=Release \
+                                                   -DCMAKE_CXX_FLAGS=-g
+    #rocksdb enable jemalloc by default, but we use regular malloc.
+    make install -j4 DISABLE_JEMALLOC=1
+else
+    echo "skip build rocksdb"
+fi

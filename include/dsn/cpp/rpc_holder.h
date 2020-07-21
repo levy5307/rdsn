@@ -34,13 +34,14 @@
 #include <dsn/tool-api/task_tracker.h>
 #include <dsn/utility/smart_pointers.h>
 #include <dsn/utility/chrono_literals.h>
+#include <dsn/dist/replication/partition_resolver.h>
 
 namespace dsn {
 
 using literals::chrono_literals::operator"" _ms;
 
 //
-// rpc_holder is mainly designed for RAII of dsn::message_ex*.
+// rpc_holder is mainly designed for RAII of message_ex*.
 // Since the request message will be automatically released after the rpc ends,
 // it will become inaccessible when you use it in an async call (probably via tasking::enqueue).
 // So in rpc_holder we hold another reference of the message, preventing it to be deleted.
@@ -78,7 +79,7 @@ public:
     using response_type = TResponse;
 
 public:
-    explicit rpc_holder(dsn::message_ex *req = nullptr)
+    explicit rpc_holder(message_ex *req = nullptr)
     {
         if (req != nullptr) {
             _i = std::make_shared<internal>(req);
@@ -86,10 +87,11 @@ public:
     }
 
     rpc_holder(std::unique_ptr<TRequest> req,
-               dsn::task_code code,
+               task_code code,
                std::chrono::milliseconds timeout = 0_ms,
-               uint64_t partition_hash = 0)
-        : _i(new internal(req, code, timeout, partition_hash))
+               uint64_t partition_hash = 0,
+               int thread_hash = 0)
+        : _i(new internal(req, code, timeout, partition_hash, thread_hash))
     {
     }
 
@@ -121,7 +123,7 @@ public:
         return _i->thrift_response;
     }
 
-    dsn::message_ex *dsn_request() const
+    message_ex *dsn_request() const
     {
         dassert(_i, "rpc_holder is uninitialized");
         return _i->dsn_request;
@@ -130,21 +132,21 @@ public:
     // the remote address where reveice request from and send response to.
     rpc_address remote_address() const { return dsn_request()->header->from_address; }
 
-    // TCallback = void(dsn::error_code)
+    // TCallback = void(error_code)
     // NOTE that the `error_code` is not the error carried by response. Users should
     // check the responded error themselves.
     template <typename TCallback>
-    task_ptr call(::dsn::rpc_address server,
-                  dsn::task_tracker *tracker,
+    task_ptr call(const rpc_address &server,
+                  task_tracker *tracker,
                   TCallback &&callback,
                   int reply_thread_hash = 0)
     {
-        // ensures that TCallback receives exactly one argument, which must be a dsn::error_code.
+        // ensures that TCallback receives exactly one argument, which must be a error_code.
         static_assert(function_traits<TCallback>::arity == 1,
                       "TCallback must receive exactly one argument");
-        static_assert(std::is_same<typename function_traits<TCallback>::template arg_t<0>,
-                                   dsn::error_code>::value,
-                      "the first argument of TCallback must be dsn::error_code");
+        static_assert(
+            std::is_same<typename function_traits<TCallback>::template arg_t<0>, error_code>::value,
+            "the first argument of TCallback must be error_code");
 
         if (dsn_unlikely(_mail_box != nullptr)) {
             _mail_box->emplace_back(*this);
@@ -155,9 +157,9 @@ public:
             dsn_request(),
             tracker,
             [ cb_fwd = std::forward<TCallback>(callback),
-              rpc = *this ](error_code err, dsn::message_ex * req, dsn::message_ex * resp) mutable {
+              rpc = *this ](error_code err, message_ex * req, message_ex * resp) mutable {
                 if (err == ERR_OK) {
-                    ::dsn::unmarshall(resp, rpc.response());
+                    unmarshall(resp, rpc.response());
                 }
                 cb_fwd(err);
             },
@@ -166,10 +168,54 @@ public:
         return t;
     }
 
+    template <typename TCallback>
+    task_ptr call(replication::partition_resolver_ptr &resolver,
+                  task_tracker *tracker,
+                  TCallback &&callback,
+                  int reply_thread_hash = 0)
+    {
+        static_assert(function_traits<TCallback>::arity == 1,
+                      "TCallback must receive exactly one argument");
+        static_assert(
+            std::is_same<typename function_traits<TCallback>::template arg_t<0>, error_code>::value,
+            "the first argument of TCallback must be error_code");
+
+        if (dsn_unlikely(_mail_box != nullptr)) {
+            _mail_box->emplace_back(*this);
+            return nullptr;
+        }
+
+        rpc_response_task_ptr t = rpc::create_rpc_response_task(
+            dsn_request(),
+            tracker,
+            [ cb_fwd = std::forward<TCallback>(callback),
+              rpc = *this ](error_code err, message_ex * req, message_ex * resp) mutable {
+                if (err == ERR_OK) {
+                    unmarshall(resp, rpc.response());
+                }
+                cb_fwd(err);
+            },
+            reply_thread_hash);
+        resolver->call_task(t);
+        return t;
+    }
+
+    void forward(const rpc_address &addr)
+    {
+        _i->auto_reply = false;
+        if (dsn_unlikely(_forward_mail_box != nullptr)) {
+            dsn_request()->header->from_address = addr;
+            _forward_mail_box->emplace_back(*this);
+            return;
+        }
+
+        dsn_rpc_forward(dsn_request(), addr);
+    }
+
     // Returns an rpc_holder that will reply the request after its lifetime ends.
     // By default rpc_holder never replies.
     // SEE: serverlet<T>::register_rpc_handler_with_rpc_holder
-    static inline rpc_holder auto_reply(dsn::message_ex *req)
+    static inline rpc_holder auto_reply(message_ex *req)
     {
         rpc_holder rpc(req);
         rpc._i->auto_reply = true;
@@ -184,19 +230,31 @@ public:
     using mail_box_u_ptr = std::unique_ptr<mail_box_t>;
     static void enable_mocking()
     {
-        dassert(_mail_box == nullptr, "remember to call clear_mocking_env after testing");
+        dassert(_mail_box == nullptr && _forward_mail_box == nullptr,
+                "remember to call clear_mocking_env after testing");
         _mail_box = make_unique<mail_box_t>();
+        _forward_mail_box = make_unique<mail_box_t>();
     }
 
     // Only use this function when testing.
     // Remember to call it after test finishes, or it may effect the results of other tests.
     // This function is not thread-safe.
-    static void clear_mocking_env() { _mail_box.reset(nullptr); }
+    static void clear_mocking_env()
+    {
+        _mail_box.reset(nullptr);
+        _forward_mail_box.reset(nullptr);
+    }
 
     static mail_box_t &mail_box()
     {
         dassert(_mail_box != nullptr, "call this function only when you are in mock mode");
         return *_mail_box.get();
+    }
+
+    static mail_box_t &forward_mail_box()
+    {
+        dassert(_forward_mail_box != nullptr, "call this function only when you are in mock mode");
+        return *_forward_mail_box.get();
     }
 
     friend bool operator<(const rpc_holder &lhs, const rpc_holder &rhs) { return lhs._i < rhs._i; }
@@ -206,28 +264,28 @@ private:
 
     struct internal
     {
-        explicit internal(dsn::message_ex *req)
+        explicit internal(message_ex *req)
             : dsn_request(req), thrift_request(make_unique<TRequest>()), auto_reply(false)
         {
             // we must hold one reference for the request, or rdsn will delete it after
             // the rpc call ends.
             dsn_request->add_ref();
-            dsn::unmarshall(req, *thrift_request);
+            unmarshall(req, *thrift_request);
         }
 
         internal(std::unique_ptr<TRequest> &req,
-                 dsn::task_code code,
+                 task_code code,
                  std::chrono::milliseconds timeout,
-                 uint64_t partition_hash)
+                 uint64_t partition_hash,
+                 int thread_hash)
             : thrift_request(std::move(req)), auto_reply(false)
         {
             dassert(thrift_request != nullptr, "req should not be null");
 
-            // leave thread_hash to 0
-            dsn_request = dsn::message_ex::create_request(
-                code, static_cast<int>(timeout.count()), 0, partition_hash);
+            dsn_request = message_ex::create_request(
+                code, static_cast<int>(timeout.count()), thread_hash, partition_hash);
             dsn_request->add_ref();
-            dsn::marshall(dsn_request, *thrift_request);
+            marshall(dsn_request, *thrift_request);
         }
 
         void reply()
@@ -240,8 +298,8 @@ private:
                 return;
             }
 
-            dsn::message_ex *dsn_response = dsn_request->create_response();
-            ::dsn::marshall(dsn_response, thrift_response);
+            message_ex *dsn_response = dsn_request->create_response();
+            marshall(dsn_response, thrift_response);
             dsn_rpc_reply(dsn_response);
         }
 
@@ -253,7 +311,7 @@ private:
             dsn_request->release_ref();
         }
 
-        dsn::message_ex *dsn_request;
+        message_ex *dsn_request;
         std::unique_ptr<TRequest> thrift_request;
         TResponse thrift_response;
 
@@ -263,6 +321,7 @@ private:
     std::shared_ptr<internal> _i;
 
     static mail_box_u_ptr _mail_box;
+    static mail_box_u_ptr _forward_mail_box;
 };
 
 // ======== type traits ========
@@ -285,12 +344,12 @@ struct is_rpc_holder<rpc_holder<TRequest, TResponse>> : public std::true_type
 namespace rpc {
 
 // call an RPC specified by rpc_holder.
-// TCallback = void(dsn::error_code)
+// TCallback = void(error_code)
 
 template <typename TCallback, typename TRpcHolder>
-task_ptr call(::dsn::rpc_address server,
+task_ptr call(rpc_address server,
               TRpcHolder rpc,
-              dsn::task_tracker *tracker,
+              task_tracker *tracker,
               TCallback &&callback,
               int reply_thread_hash = 0)
 {
@@ -304,6 +363,9 @@ task_ptr call(::dsn::rpc_address server,
 
 template <typename TRequest, typename TResponse>
 typename rpc_holder<TRequest, TResponse>::mail_box_u_ptr rpc_holder<TRequest, TResponse>::_mail_box;
+template <typename TRequest, typename TResponse>
+typename rpc_holder<TRequest, TResponse>::mail_box_u_ptr
+    rpc_holder<TRequest, TResponse>::_forward_mail_box;
 
 template <typename TRpcHolder>
 struct rpc_mock_wrapper

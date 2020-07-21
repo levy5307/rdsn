@@ -82,10 +82,19 @@ fi
 # valgrind can not work together with gpertools
 # you may want to use this option when you want to run valgrind
 if [ "$DISABLE_GPERF" == "YES" ]
+then
     echo "DISABLE_GPERF=YES"
     CMAKE_OPTIONS="$CMAKE_OPTIONS -DENABLE_GPERF=Off"
-then
+else
     echo "DISABLE_GPERF=NO"
+fi
+
+if [ ! -z "$SANITIZER" ]
+then
+    echo "SANITIZER=$SANITIZER"
+    CMAKE_OPTIONS="$CMAKE_OPTIONS -DSANITIZER=$SANITIZER"
+else
+    echo "Build without sanitizer"
 fi
 
 # You can specify customized boost by defining BOOST_DIR.
@@ -144,6 +153,13 @@ fi
 
 cd $ROOT
 DSN_GIT_COMMIT=`git log | head -n 1 | awk '{print $2}'`
+if [ $? -ne 0 ] || [ -z "$DSN_GIT_COMMIT" ] 
+then
+    echo "ERROR: get DSN_GIT_COMMIT failed"
+    echo "HINT: check if rdsn is a git repo"
+    echo "   or check gitdir in .git (edit it or use \"git --git-dir='../.git/modules/rdsn' log\" to get commit)"
+    exit 1
+fi
 GIT_COMMIT_FILE=include/dsn/git_commit.h
 if [ ! -f $GIT_COMMIT_FILE ] || ! grep $DSN_GIT_COMMIT $GIT_COMMIT_FILE
 then
@@ -174,7 +190,7 @@ echo "################################# start testing ##########################
 if [ -z "$TEST_MODULE" ]
 then
     # supported test module
-    TEST_MODULE="dsn.core.tests,dsn.tests,dsn_nfs_test,dsn.replication.simple_kv,dsn.rep_tests.simple_kv,dsn.meta.test,dsn.replica.test"
+    TEST_MODULE="dsn_runtime_tests,dsn_utils_tests,dsn_perf_counter_test,dsn.zookeeper.tests,dsn_aio_test,dsn.failure_detector.tests,dsn_meta_state_tests,dsn_nfs_test,dsn_block_service_test,dsn.replication.simple_kv,dsn.rep_tests.simple_kv,dsn.meta.test,dsn.replica.test,dsn_http_test,dsn_replica_dup_test,dsn_replica_backup_test,dsn_replica_bulk_load_test"
 fi
 
 echo "TEST_MODULE=$TEST_MODULE"

@@ -24,15 +24,6 @@
  * THE SOFTWARE.
  */
 
-/*
- * Description:
- *     base interface for a network provider
- *
- * Revision history:
- *     Mar., 2015, @imzhenyu (Zhenyu Guo), first version
- *     xxxx-xx-xx, author, fix bug about xxx
- */
-
 #pragma once
 
 #include <dsn/tool-api/task.h>
@@ -136,7 +127,6 @@ public:
     network_header_format unknown_msg_hdr_format() const { return _unknown_msg_header_format; }
     int message_buffer_block_size() const { return _message_buffer_block_size; }
 
-protected:
     DSN_API static uint32_t get_local_ipv4();
 
 protected:
@@ -167,8 +157,11 @@ public:
     DSN_API void on_server_session_accepted(rpc_session_ptr &s);
     DSN_API void on_server_session_disconnected(rpc_session_ptr &s);
 
+    // Checks if IP of the incoming session has too much connections.
+    // Related config: [network] conn_threshold_per_ip. No limit if the value is 0.
+    DSN_API bool check_if_conn_threshold_exceeded(::dsn::rpc_address ep);
+
     // client session management
-    DSN_API rpc_session_ptr get_client_session(::dsn::rpc_address ep);
     DSN_API void on_client_session_connected(rpc_session_ptr &s);
     DSN_API void on_client_session_disconnected(rpc_session_ptr &s);
 
@@ -191,7 +184,11 @@ protected:
 
     typedef std::unordered_map<::dsn::rpc_address, rpc_session_ptr> server_sessions;
     server_sessions _servers; // from_address => rpc_session
+    typedef std::unordered_map<uint32_t, uint32_t> ip_connection_count;
+    ip_connection_count _ip_conn_count; // from_ip => connection count
     utils::rw_lock_nr _servers_lock;
+
+    uint32_t _cfg_conn_threshold_per_ip;
 };
 
 /*!
@@ -224,6 +221,7 @@ public:
     virtual void connect() = 0;
     virtual void close() = 0;
 
+    // Whether this session is launched on client side.
     bool is_client() const { return _is_client; }
     bool need_auth() const { return _net.need_auth_connection(); }
     bool mandantory_auth() const { return _net.mandatory_auth(); }
@@ -313,10 +311,6 @@ protected:
     void set_negotiation();
     void set_connected();
 
-    bool is_disconnected() const { return _connect_state == SS_DISCONNECTED; }
-    bool is_connecting() const { return _connect_state == SS_CONNECTING; }
-    bool is_connected() const { return _connect_state == SS_CONNECTED; }
-
     void clear_send_queue(bool resend_msgs);
     bool on_disconnected(bool is_write);
     bool prepare_auth_for_normal_message(message_ex *msg);
@@ -355,4 +349,4 @@ inline bool rpc_session::delay_recv(int delay_ms)
 }
 
 /*@}*/
-}
+} // namespace dsn

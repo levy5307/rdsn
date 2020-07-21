@@ -124,13 +124,23 @@ fi
 cd $TP_SRC
 
 # concurrent queue
-# from: https://codeload.github.com/cameron314/concurrentqueue/tar.gz/v1.0.0-beta
-CONCURRENT_QUEUE_NAME=concurrentqueue-1.0.0-beta
+# from: https://codeload.github.com/cameron314/concurrentqueue/tar.gz/v1.0.1
+CONCURRENT_QUEUE_NAME=concurrentqueue-1.0.1
 CONCURRENT_QUEUE_PKG=${CONCURRENT_QUEUE_NAME}.tar.gz
 check_and_download "${CONCURRENT_QUEUE_PKG}"\
     "${OSS_URL_PREFIX}/${CONCURRENT_QUEUE_PKG}"\
-    "761446e2392942aa342f437697ddb72e"\
+    "80016b584fddffd67073349efd7b8958"\
     "${CONCURRENT_QUEUE_NAME}"
+exit_if_fail $?
+
+# readwrite queue
+# from: https://codeload.github.com/cameron314/readerwriterqueue/tar.gz/v1.0.2
+READERWRITER_QUEUE_NAME=readerwriterqueue-1.0.2
+READERWRITER_QUEUE_PKG=${READERWRITER_QUEUE_NAME}.tar.gz
+check_and_download "${READERWRITER_QUEUE_PKG}"\
+    "${OSS_URL_PREFIX}/${READERWRITER_QUEUE_PKG}"\
+    "9e355a2660bd2810cb1874fb7366906e"\
+    "${READERWRITER_QUEUE_NAME}"
 exit_if_fail $?
 
 # googletest
@@ -248,6 +258,51 @@ check_and_download "${GFLAGS_PKG}"\
     "${GFLAGS_NAME}"
 exit_if_fail $?
 
+# civetweb
+# from: https://codeload.github.com/civetweb/civetweb/tar.gz/v1.11
+CIVETWEB_NAME=civetweb-1.11
+CIVETWEB_PKG=${CIVETWEB_NAME}.tar.gz
+check_and_download "${CIVETWEB_PKG}"\
+    "${OSS_URL_PREFIX}/${CIVETWEB_PKG}"\
+    "b6d2175650a27924bccb747cbe084cd4"\
+    "${CIVETWEB_NAME}"
+exit_if_fail $?
+
+# prometheus-cpp
+# from: https://codeload.github.com/jupp0r/prometheus-cpp/tar.gz/v0.7.0
+PROMETHEUS_NAME=prometheus-cpp-0.7.0
+PROMETHEUS_PKG=${PROMETHEUS_NAME}.tar.gz
+check_and_download "${PROMETHEUS_PKG}"\
+    "${OSS_URL_PREFIX}/${PROMETHEUS_PKG}"\
+    "dc75c31ceaefd160e978365bdca8eb01"\
+    "${PROMETHEUS_NAME}"
+exit_if_fail $?
+
+rm -rf $TP_SRC/prometheus-cpp-0.7.0/3rdparty/civetweb
+cp -r $TP_SRC/civetweb-1.11 $TP_SRC/prometheus-cpp-0.7.0/3rdparty/
+cd $TP_SRC/prometheus-cpp-0.7.0/3rdparty
+mv civetweb-1.11 civetweb
+cd $TP_SRC
+
+# curl
+# from: http://curl.haxx.se/download/curl-7.47.0.tar.gz
+CURL_NAME=curl-7.47.0
+CURL_PKG=${CURL_NAME}.tar.gz
+check_and_download "${CURL_PKG}"\
+    "${OSS_URL_PREFIX}/${CURL_PKG}"\
+    "5109d1232d208dfd712c0272b8360393"\
+    "${CURL_NAME}"
+exit_if_fail $?
+
+# nlohmann_json
+# from: https://github.com/nlohmann/json/releases/download/v3.7.3/include.zip
+NLOHMANN_JSON_NAME=nlohmann_json-3.7.3
+NLOHMANN_JSON_PKG=${NLOHMANN_JSON_NAME}.zip
+check_and_download "${NLOHMANN_JSON_PKG}" \
+    "${OSS_URL_PREFIX}/${NLOHMANN_JSON_PKG}" \
+    "7249387593792b565dcb30d87bca0de3" \
+    "${NLOHMANN_JSON_NAME}"
+
 # s2geometry
 # from: https://github.com/google/s2geometry/archive/0239455c1e260d6d2c843649385b4fb9f5b28dba.zip
 S2GEOMETRY_NAME=s2geometry-0239455c1e260d6d2c843649385b4fb9f5b28dba
@@ -256,6 +311,15 @@ check_and_download "${S2GEOMETRY_PKG}" \
     "${OSS_URL_PREFIX}/${S2GEOMETRY_PKG}" \
     "bfa5f1c08f535a72fb2c92ec16332c64" \
     "${S2GEOMETRY_NAME}"
+
+# rocksdb
+# from: https://github.com/XiaoMi/pegasus-rocksdb/archive/v6.6.4-compatible.zip
+ROCKSDB_NAME=pegasus-rocksdb-6.6.4-compatible
+ROCKSDB_PKG=${ROCKSDB_NAME}.zip
+check_and_download "${ROCKSDB_PKG}" \
+    "${OSS_URL_PREFIX}/${ROCKSDB_PKG}" \
+    "595b21fbe681dcf126c4cccda46f1cbb" \
+    "${ROCKSDB_NAME}"
 
 ret_code=$?
 if [ $ret_code -eq 2 ]; then

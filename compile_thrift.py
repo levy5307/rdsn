@@ -25,12 +25,12 @@ thrift_description = [
         },
         "file_move": {
             "_types.h": "include/dsn/cpp/serialization_helper",
-            "_types.cpp": "src/core/core"
+            "_types.cpp": "src/runtime"
         }
     },
     {
         "name": "fd",
-        "path": "src/dist/failure_detector",
+        "path": "src/failure_detector",
         "file_move": {
             "_types.h": "include/dsn/dist/failure_detector"
         },
@@ -47,10 +47,10 @@ thrift_description = [
     },
     {
         "name": "replication",
-        "path": "src/dist/replication",
+        "path": "src/",
         "file_move": {
             "_types.h": "include/dsn/dist/replication",
-            "_types.cpp": "src/dist/replication/common"
+            "_types.cpp": "src/common"
         },
         "include_fix": {
             "_types.h": {
@@ -65,7 +65,7 @@ thrift_description = [
     },
     {
         "name": "nfs",
-        "path": "src/dist/nfs",
+        "path": "src/nfs",
         "include_fix": {
             "_types.h": {
                 "add": ["<dsn/service_api_cpp.h>"],
@@ -75,22 +75,14 @@ thrift_description = [
     },
     {
         "name": "simple_kv",
-        "path": "src/dist/replication/storage_engine/simple_kv"
+        "path": "src/replica/storage/simple_kv"
     },
     {
-        "name": "cli",
-        "path": "src/dist/cli",
+        "name": "command",
+        "path": "src/remote_cmd",
         "file_move": {
-            "_types.h": "include/dsn/dist/cli"
-        },
-        "include_fix": {
-            "_types.h": {
-                "remove": ["\"dsn_types.h\""]
-            },
-            "_types.cpp": {
-                "add": ["<dsn/dist/cli/cli_types.h>"],
-                "remove": ["\"cli_types.h\""]
-            },
+            "_types.h": "src/remote_cmd",
+            "_types.cpp": "src/remote_cmd"
         }
     },
     {
@@ -112,16 +104,6 @@ thrift_description = [
     },
 ]
 
-thrift_exe = os.getcwd() + "/bin/Linux/thrift"
-root_dir = os.getcwd()
-print "thrift_exe = " + thrift_exe
-print "root_dir = " + root_dir
-
-if not os.path.isfile(thrift_exe):
-    os.system("wget --no-check-certificate "
-              "https://github.com/xiaomi/pegasus-common/raw/master/pre-built/ubuntu14.04/thrift "
-              "&& chmod u+x thrift "
-              "&& mv thrift "+thrift_exe)
 
 class CompileError(Exception):
     """ Raised when dealing with thrift idl have errors"""
@@ -287,11 +269,20 @@ def add_hook(name, path, func, args):
 
 
 if __name__ == "__main__":
+    thrift_exe = os.getcwd() + "/thirdparty/output/bin/thrift"
+    root_dir = os.getcwd()
+    print "thrift_exe = " + thrift_exe
+    print "root_dir = " + root_dir
+
+    if not os.path.isfile(thrift_exe):
+        print "Error: can't find compiler %s\nPlease build thrift in thirdparty/" % thrift_exe
+        sys.exit()
+
     ctor_kv_pair = "  kv_pair(const std::string& _key, const std::string& _val): key(_key), value(_val) {\n  }"
     ctor_configuration_proposal_action = "  configuration_proposal_action(::dsn::rpc_address t, ::dsn::rpc_address n, config_type::type tp): target(t), node(n), type(tp) {}"
-    add_hook("simple_kv", "src/apps/skv", constructor_hook,
+    add_hook("simple_kv", "src/replica/storage/simple_kv", constructor_hook,
              ["simple_kv_types.h", "kv_pair", ctor_kv_pair])
-    add_hook("replication", "src/dist/replication", constructor_hook,
+    add_hook("replication", "src/", constructor_hook,
              ["replication_types.h", "configuration_proposal_action", ctor_configuration_proposal_action])
     add_hook("dsn.layer2", "src", replace_hook, ["dsn.layer2_types.h", {
              r"dsn\.layer2_TYPES_H": 'dsn_layer2_TYPES_H'}])

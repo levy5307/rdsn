@@ -35,11 +35,10 @@
 
 #pragma once
 
-#include <dsn/service_api_c.h>
 #include <stdarg.h>
+#include <dsn/utility/factory_store.h>
 
 namespace dsn {
-
 /*!
 @addtogroup tool-api-providers
 @{
@@ -60,6 +59,12 @@ public:
 
     virtual ~logging_provider(void) {}
 
+    // singleton
+    static logging_provider *instance();
+
+    // not thread-safe
+    static void set_logger(logging_provider *logger);
+
     virtual void dsn_logv(const char *file,
                           const char *function,
                           const int line,
@@ -67,9 +72,32 @@ public:
                           const char *fmt,
                           va_list args) = 0;
 
+    virtual void dsn_log(const char *file,
+                         const char *function,
+                         const int line,
+                         dsn_log_level_t log_level,
+                         const char *str) = 0;
+
     virtual void flush() = 0;
+
+private:
+    static std::unique_ptr<logging_provider> _logger;
+
+    static logging_provider *create_default_instance();
 };
 
-/*@}*/
-// ----------------------- inline implementation ---------------------------------------
-} // end namespace
+void set_log_prefixed_message_func(std::function<std::string()> func);
+extern std::function<std::string()> log_prefixed_message_func;
+
+namespace tools {
+namespace internal_use_only {
+DSN_API bool register_component_provider(const char *name,
+                                         logging_provider::factory f,
+                                         ::dsn::provider_type type);
+} // namespace internal_use_only
+} // namespace tools
+} // namespace dsn
+
+extern void dsn_log_init(const std::string &logging_factory_name,
+                         const std::string &dir_log,
+                         std::function<std::string()> dsn_log_prefixed_message_func);

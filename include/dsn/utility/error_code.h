@@ -31,6 +31,11 @@ public:
     static error_code try_get(const char *name, error_code default_value);
     static error_code try_get(const std::string &name, error_code default_value);
 
+    friend std::ostream &operator<<(std::ostream &os, const error_code &ec)
+    {
+        return os << std::string(ec.to_string());
+    }
+
 private:
     int _internal_code{0};
 };
@@ -113,6 +118,8 @@ DEFINE_ERR_CODE(ERR_IGNORE_BAD_DATA)
 DEFINE_ERR_CODE(ERR_APP_DROPPED)
 DEFINE_ERR_CODE(ERR_MOCK_INTERNAL)
 DEFINE_ERR_CODE(ERR_ZOOKEEPER_OPERATION)
+DEFINE_ERR_CODE(ERR_CHILD_REGISTERED)
+DEFINE_ERR_CODE(ERR_INGESTION_FAILED)
 
 DEFINE_ERR_CODE(ERR_RUNTIME_ERROR)
 DEFINE_ERR_CODE(ERR_INCOMPLETE)

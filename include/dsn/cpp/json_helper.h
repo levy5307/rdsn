@@ -35,6 +35,7 @@
 #include <cctype>
 
 #include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/prettywriter.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/document.h>
 
@@ -79,6 +80,16 @@
 #define JSON_ENCODE_ENTRIES11(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)           \
     JSON_ENCODE_ENTRIES10(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);                   \
     JSON_ENCODE_ENTRY(out, prefix, T11)
+#define JSON_ENCODE_ENTRIES12(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)      \
+    JSON_ENCODE_ENTRIES11(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);              \
+    JSON_ENCODE_ENTRY(out, prefix, T12)
+#define JSON_ENCODE_ENTRIES13(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) \
+    JSON_ENCODE_ENTRIES12(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12);         \
+    JSON_ENCODE_ENTRY(out, prefix, T13)
+#define JSON_ENCODE_ENTRIES14(                                                                     \
+    out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)                      \
+    JSON_ENCODE_ENTRIES13(out, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13);    \
+    JSON_ENCODE_ENTRY(out, prefix, T14)
 
 #define JSON_DECODE_ENTRY(in, prefix, T)                                                           \
     do {                                                                                           \
@@ -127,8 +138,19 @@
 #define JSON_DECODE_ENTRIES11(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)            \
     JSON_DECODE_ENTRIES10(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10);                    \
     JSON_TRY_DECODE_ENTRY(in, prefix, T11)
+#define JSON_DECODE_ENTRIES12(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)       \
+    JSON_DECODE_ENTRIES11(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11);               \
+    JSON_TRY_DECODE_ENTRY(in, prefix, T12)
+#define JSON_DECODE_ENTRIES13(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)  \
+    JSON_DECODE_ENTRIES12(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12);          \
+    JSON_TRY_DECODE_ENTRY(in, prefix, T13)
+#define JSON_DECODE_ENTRIES14(                                                                     \
+    in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)                       \
+    JSON_DECODE_ENTRIES13(in, prefix, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13);     \
+    JSON_TRY_DECODE_ENTRY(in, prefix, T14)
 
-#define JSON_ENTRIES_GET_MACRO(ph1, ph2, ph3, ph4, ph5, ph6, ph7, ph8, ph9, ph10, ph11, NAME, ...) \
+#define JSON_ENTRIES_GET_MACRO(                                                                    \
+    ph1, ph2, ph3, ph4, ph5, ph6, ph7, ph8, ph9, ph10, ph11, ph12, ph13, ph14, NAME, ...)          \
     NAME
 // workaround due to the way VC handles "..."
 #define JSON_ENTRIES_GET_MACRO_(tuple) JSON_ENTRIES_GET_MACRO tuple
@@ -136,6 +158,9 @@
 #define JSON_ENCODE_ENTRIES(out, prefix, ...)                                                      \
     out.StartObject();                                                                             \
     JSON_ENTRIES_GET_MACRO_((__VA_ARGS__,                                                          \
+                             JSON_ENCODE_ENTRIES14,                                                \
+                             JSON_ENCODE_ENTRIES13,                                                \
+                             JSON_ENCODE_ENTRIES12,                                                \
                              JSON_ENCODE_ENTRIES11,                                                \
                              JSON_ENCODE_ENTRIES10,                                                \
                              JSON_ENCODE_ENTRIES9,                                                 \
@@ -155,6 +180,9 @@
     int arguments_count = 0;                                                                       \
     int parsed_count = 0;                                                                          \
     JSON_ENTRIES_GET_MACRO_((__VA_ARGS__,                                                          \
+                             JSON_DECODE_ENTRIES14,                                                \
+                             JSON_DECODE_ENTRIES13,                                                \
+                             JSON_DECODE_ENTRIES12,                                                \
                              JSON_DECODE_ENTRIES11,                                                \
                              JSON_DECODE_ENTRIES10,                                                \
                              JSON_DECODE_ENTRIES9,                                                 \
@@ -200,6 +228,7 @@ namespace json {
 
 typedef rapidjson::GenericValue<rapidjson::UTF8<>> JsonObject;
 typedef rapidjson::Writer<rapidjson::OStreamWrapper> JsonWriter;
+typedef rapidjson::PrettyWriter<rapidjson::OStreamWrapper> PrettyJsonWriter;
 
 template <typename>
 class json_forwarder;
@@ -207,7 +236,8 @@ class json_forwarder;
 // json serialization for string types.
 // please notice when we call rapidjson::Writer::String, with 3rd parameter with "true",
 // which means that we will COPY string to writer
-inline void json_encode(JsonWriter &out, const std::string &str)
+template <typename Writer>
+void json_encode(Writer &out, const std::string &str)
 {
     out.String(str.c_str(), str.length(), true);
 }
@@ -305,6 +335,8 @@ UINT_TYPE_SERIALIZATION(uint64_t)
 ENUM_TYPE_SERIALIZATION(dsn::replication::partition_status::type,
                         dsn::replication::partition_status::PS_INVALID)
 ENUM_TYPE_SERIALIZATION(dsn::app_status::type, dsn::app_status::AS_INVALID)
+ENUM_TYPE_SERIALIZATION(dsn::replication::bulk_load_status::type,
+                        dsn::replication::bulk_load_status::BLS_INVALID)
 
 // json serialization for gpid, we treat it as string: "app_id.partition_id"
 inline void json_encode(JsonWriter &out, const dsn::gpid &pid)
@@ -337,6 +369,10 @@ inline void json_encode(JsonWriter &out, const dsn::partition_configuration &con
 inline bool json_decode(const JsonObject &in, dsn::partition_configuration &config);
 inline void json_encode(JsonWriter &out, const dsn::app_info &info);
 inline bool json_decode(const JsonObject &in, dsn::app_info &info);
+inline void json_encode(JsonWriter &out, const dsn::replication::file_meta &f_meta);
+inline bool json_decode(const JsonObject &in, dsn::replication::file_meta &f_meta);
+inline void json_encode(JsonWriter &out, const dsn::replication::bulk_load_metadata &metadata);
+inline bool json_decode(const JsonObject &in, dsn::replication::bulk_load_metadata &metadata);
 
 template <typename T>
 inline void json_encode_iterable(JsonWriter &out, const T &t)
@@ -598,6 +634,13 @@ NON_MEMBER_JSON_SERIALIZATION(dsn::app_info,
                               max_replica_count,
                               expire_second,
                               create_second,
-                              drop_second)
-}
-}
+                              drop_second,
+                              duplicating,
+                              init_partition_count,
+                              is_bulk_loading)
+
+NON_MEMBER_JSON_SERIALIZATION(dsn::replication::file_meta, name, size, md5)
+
+NON_MEMBER_JSON_SERIALIZATION(dsn::replication::bulk_load_metadata, files, file_total_size)
+} // namespace json
+} // namespace dsn

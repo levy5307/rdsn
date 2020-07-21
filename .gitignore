@@ -2,6 +2,7 @@
 .kdev4/
 .zk_install/
 .idea
+.vscode/
 
 gcov_report/
 bin/Linux/thrift
@@ -28,3 +29,4 @@ thirdparty/src
 thirdparty/output
 
 packages/
+cmake-build-debug/

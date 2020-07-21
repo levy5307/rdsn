@@ -75,7 +75,6 @@ struct __tls_dsn__
     int node_id;
 
     rpc_engine *rpc;
-    disk_engine *disk;
     env_provider *env;
 
     int last_worker_queue_size;
@@ -248,7 +247,6 @@ public:
     static int get_current_worker_index();
     static const char *get_current_node_name();
     static rpc_engine *get_current_rpc();
-    static disk_engine *get_current_disk();
     static env_provider *get_current_env();
 
     static void set_tls_dsn_context(
@@ -296,6 +294,8 @@ protected:
     error_code _error;
 
 private:
+    friend class task_test;
+
     task(const task &);
     bool wait_on_cancel();
 
@@ -531,85 +531,7 @@ private:
 };
 typedef dsn::ref_ptr<rpc_response_task> rpc_response_task_ptr;
 
-//------------------------- disk AIO task ---------------------------------------------------
-
-enum aio_type
-{
-    AIO_Invalid,
-    AIO_Read,
-    AIO_Write
-};
-
-class disk_engine;
-class disk_aio
-{
-public:
-    // filled by apps
-    dsn_handle_t file;
-    void *buffer;
-    bool support_write_vec; // if the aio provider supports write buffer vector
-    std::vector<dsn_file_buffer_t> *write_buffer_vec; // only used if support_write_vec is true
-    uint32_t buffer_size;
-    uint64_t file_offset;
-
-    // filled by frameworks
-    aio_type type;
-    disk_engine *engine;
-    void *file_object;
-
-    disk_aio()
-        : file(nullptr),
-          buffer(nullptr),
-          support_write_vec(false),
-          write_buffer_vec(nullptr),
-          buffer_size(0),
-          file_offset(0),
-          type(AIO_Invalid),
-          engine(nullptr),
-          file_object(nullptr)
-    {
-    }
-};
-
-class aio_task : public task
-{
-public:
-    aio_task(task_code code, const aio_handler &cb, int hash = 0, service_node *node = nullptr);
-    aio_task(task_code code, aio_handler &&cb, int hash = 0, service_node *node = nullptr);
-    ~aio_task();
-
-    // tell the compiler that we want both the enqueue from base task and ours
-    // to prevent the compiler complaining -Werror,-Woverloaded-virtual.
-    using task::enqueue;
-    void enqueue(error_code err, size_t transferred_size);
-
-    size_t get_transferred_size() const { return _transferred_size; }
-    disk_aio *aio() { return _aio; }
-
-    // merge buffers in _unmerged_write_buffers to a single merged buffer.
-    // and store it in _merged_write_buffer_holder.
-    void collapse();
-
-    // invoked on aio completed
-    virtual void exec() override
-    {
-        if (nullptr != _cb) {
-            _cb(_error, _transferred_size);
-        }
-    }
-
-    std::vector<dsn_file_buffer_t> _unmerged_write_buffers;
-    blob _merged_write_buffer_holder;
-
-protected:
-    void clear_non_trivial_on_task_end() override { _cb = nullptr; }
-
-protected:
-    disk_aio *_aio;
-    size_t _transferred_size;
-    aio_handler _cb;
-};
-typedef dsn::ref_ptr<aio_task> aio_task_ptr;
+const std::vector<task_worker *> &get_threadpool_threads_info(threadpool_code code);
 
 // ------------------------ inline implementations --------------------
 __inline /*static*/ void task::check_tls_dsn()
@@ -670,12 +592,6 @@ __inline /*static*/ rpc_engine *task::get_current_rpc()
 {
     check_tls_dsn();
     return tls_dsn.rpc;
-}
-
-__inline /*static*/ disk_engine *task::get_current_disk()
-{
-    check_tls_dsn();
-    return tls_dsn.disk;
 }
 
 __inline /*static*/ env_provider *task::get_current_env()
