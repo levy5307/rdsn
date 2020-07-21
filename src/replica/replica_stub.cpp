@@ -1375,7 +1375,7 @@ void replica_stub::on_node_query_reply(error_code err,
             auto acl = it->info.envs.find(security::access_controller::ACL_KEY);
             if (acl == it->info.envs.end())
                 continue;
-            security::access_controller::decode_and_insert(it->info.app_id, acl->second, temp);
+            security::decode_and_insert(it->info.app_id, acl->second, temp);
         }
         _access_controller.update_cache(std::move(temp));
     }

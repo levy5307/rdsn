@@ -2780,13 +2780,14 @@ void server_state::clear_app_envs(const app_env_rpc &env_rpc)
             oss << std::endl << "    " << kv.first;
         }
         ainfo.envs.clear();
-        // for (auto iter = ainfo.envs.begin(); iter != ainfo.envs.end();) {
-        //     if (iter->first != security::access_controller::ACL_KEY) {
-        //         oss << std::endl << "    " << iter->first;
-        //         iter = ainfo.envs.erase(iter);
-        //     } else
-        //         iter++;
-        // }
+        for (auto iter = ainfo.envs.begin(); iter != ainfo.envs.end();) {
+            if (iter->first != security::access_controller::ACL_KEY) {
+                oss << std::endl << "    " << iter->first;
+                iter = ainfo.envs.erase(iter);
+            } else {
+                iter++;
+            }
+         }
     } else {
         // acquire key
         for (const auto &pair : ainfo.envs) {
@@ -2825,12 +2826,13 @@ void server_state::clear_app_envs(const app_env_rpc &env_rpc)
             std::string old_envs = dsn::utils::kv_map_to_string(app->envs, ',', '=');
             if (prefix.empty()) {
                 app->envs.clear();
-                // for (auto iter = app->envs.begin(); iter != app->envs.end();) {
-                //     if (iter->first != security::access_controller::ACL_KEY) {
-                //         iter = app->envs.erase(iter);
-                //     } else
-                //         iter++;
-                // }
+                for (auto iter = app->envs.begin(); iter != app->envs.end();) {
+                    if (iter->first != security::access_controller::ACL_KEY) {
+                        iter = app->envs.erase(iter);
+                    } else {
+                        iter++;
+                    }
+                }
             } else {
                 for (const auto &key : erase_keys) {
                     app->envs.erase(key);

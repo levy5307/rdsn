@@ -103,10 +103,6 @@ class access_controller
 {
 public:
     static const std::string ACL_KEY;
-    static void decode_and_insert(int app_id,
-                                  const std::string &acl_entries_str,
-                                  std::shared_ptr<acls_map> acls);
-
     access_controller();
 
     void
@@ -158,5 +154,10 @@ private:
 
     rcu_map _cached_app_acls;
 };
+
+void decode_and_insert(int app_id,
+                       const std::string &acl_entries_str,
+                       std::shared_ptr<acls_map> acls);
+
 } // namespace security
 } // namespace dsn

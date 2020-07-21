@@ -12,9 +12,9 @@ namespace security {
 
 const std::string access_controller::ACL_KEY = "acl";
 
-void access_controller::decode_and_insert(int app_id,
-                                          const std::string &acl_entries_str,
-                                          std::shared_ptr<acls_map> acls)
+void decode_and_insert(int app_id,
+                       const std::string &acl_entries_str,
+                       std::shared_ptr<acls_map> acls)
 {
     if (acl_entries_str.empty()) {
         return;
