@@ -1,3 +1,7 @@
+// Copyright (c) 2017, Xiaomi, Inc.  All rights reserved.
+// This source code is licensed under the Apache License Version 2.0, which
+// can be found in the LICENSE file in the root directory of this source tree.
+
 #include <security/sasl_utils.h>
 #include <dsn/c/api_utilities.h>
 #include <dsn/utility/config_api.h>
@@ -181,5 +185,5 @@ error_s sasl_init(bool is_server)
     return ret;
 }
 
-} // end namespace security
-} // end namespace dsn
+} // namespace security
+} // namespace dsn

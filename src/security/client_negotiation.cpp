@@ -291,5 +291,5 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
     fail_negotiation();
 }
 
-} // end namespace security
-} // end namespace dsn
+} // namespace security
+} // namespace dsn

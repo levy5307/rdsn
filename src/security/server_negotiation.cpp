@@ -238,5 +238,5 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
     }
 }
 
-} // end namespace security
-} // end namespace dsn
+} // namespace security
+} // namespace dsn
