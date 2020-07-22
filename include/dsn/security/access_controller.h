@@ -50,6 +50,7 @@ enum class acl_bit
     // X
 }; // string RW
 
+// key-appid, value-{user_name, permission}
 typedef std::unordered_map<int, std::unordered_map<std::string, std::string>> acls_map;
 class rcu_map
 {

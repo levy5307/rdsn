@@ -205,7 +205,8 @@ void asio_rpc_session::connect()
 
                 set_options();
                 set_negotiation();
-                negotiation(); // now only auth negotiation is supported, version negotiation will be supported in the future
+                // now only auth negotiation is supported, version negotiation will be supported in the future
+                negotiation();
 
                 // please make sure we should start negotiation first before recv messages
                 start_read_next();
