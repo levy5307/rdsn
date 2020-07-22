@@ -37,7 +37,7 @@
 #include <dsn/perf_counter/perf_counter_wrapper.h>
 #include <dsn/dist/failure_detector_multimaster.h>
 #include <dsn/dist/nfs_node.h>
-#include <dsn/security/access_controller.h>
+#include <security/access_controller.h>
 
 #include "common/replication_common.h"
 #include "common/fs_manager.h"

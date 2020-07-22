@@ -27,7 +27,7 @@
 #pragma once
 
 #include <dsn/utility/errors.h>
-#include <dsn/security/init.h>
+#include <security/init.h>
 
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>

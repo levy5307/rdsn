@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include <dsn/security/negotiation_utils.h>
+#include <security/negotiation_utils.h>
 
 namespace dsn {
 namespace security {

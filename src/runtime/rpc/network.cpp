@@ -26,9 +26,9 @@
 
 #include <dsn/utility/factory_store.h>
 #include <dsn/tool-api/network.h>
-#include <dsn/security/client_negotiation.h>
-#include <dsn/security/server_negotiation.h>
-#include <dsn/security/rpc_codes.h>
+#include <security/client_negotiation.h>
+#include <security/server_negotiation.h>
+#include <security/rpc_codes.h>
 
 #include "message_parser_manager.h"
 #include "rpc_engine.h"

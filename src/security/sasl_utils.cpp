@@ -1,4 +1,4 @@
-#include <dsn/security/sasl_utils.h>
+#include <security/sasl_utils.h>
 #include <dsn/c/api_utilities.h>
 #include <dsn/utility/config_api.h>
 

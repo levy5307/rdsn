@@ -3,8 +3,8 @@
 // can be found in the LICENSE file in the root directory of this source tree.
 
 #include <dsn/tool-api/rpc_address.h>
-#include <dsn/security/init.h>
-#include <dsn/security/server_negotiation.h>
+#include <security/init.h>
+#include <security/server_negotiation.h>
 #include <dsn/dist/fmt_logging.h>
 
 namespace dsn {

@@ -5,7 +5,7 @@
 #include <krb5/krb5.h>
 #include <fmt/format.h>
 
-#include <dsn/security/init.h>
+#include <security/init.h>
 #include <dsn/c/api_utilities.h>
 #include <dsn/utility/config_api.h>
 #include <dsn/utility/filesystem.h>

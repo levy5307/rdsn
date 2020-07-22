@@ -26,9 +26,9 @@
 
 #pragma once
 
-#include <dsn/security/security_types.h>
-#include <dsn/security/sasl_utils.h>
-#include <dsn/security/rpc_codes.h>
+#include <security/security_types.h>
+#include <security/sasl_utils.h>
+#include <security/rpc_codes.h>
 #include <dsn/tool-api/network.h>
 #include <dsn/tool-api/rpc_message.h>
 

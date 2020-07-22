@@ -33,7 +33,7 @@
 #include <dsn/tool-api/task.h>
 #include <dsn/utility/singleton_store.h>
 #include <dsn/utility/utils.h>
-#include <dsn/security/sasl_utils.h>
+#include <security/sasl_utils.h>
 
 #include <dsn/utility/config_api.h>
 #include <dsn/utility/filesystem.h>
