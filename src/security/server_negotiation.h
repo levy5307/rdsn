@@ -32,6 +32,8 @@ private:
     void reply(const message_ptr &req, const negotiation_message &response_data);
 
 private:
+    // the lifetime of _session should be longer than client_negotiation
+    rpc_session *_session;
     // for logging
     std::string _name;
     std::string _selected_mechanism;

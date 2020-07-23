@@ -154,8 +154,7 @@ void asio_network_provider::do_accept()
                                          false);
 
                 // start negotiation when server accept the connection
-                /// TODO(zlw): There is no need to do negotiation in server session
-                /// s->negotiation();
+                s->negotiation();
 
                 // when server connection threshold is hit, close the session, otherwise accept it
                 if (check_if_conn_threshold_exceeded(s->remote_address())) {

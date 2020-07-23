@@ -12,7 +12,7 @@
 namespace dsn {
 namespace security {
 
-client_negotiation::client_negotiation(rpc_session *session) : negotiation(session)
+client_negotiation::client_negotiation(rpc_session *session) : negotiation(), _session(session)
 {
     _name = fmt::format("C_NEGO_L({})=>R({})",
                         dsn_primary_address().to_string(),

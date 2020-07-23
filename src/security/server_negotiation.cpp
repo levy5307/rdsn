@@ -12,8 +12,7 @@
 namespace dsn {
 namespace security {
 
-server_negotiation::server_negotiation(rpc_session *session)
-    : negotiation(session)
+server_negotiation::server_negotiation(rpc_session *session) : negotiation(), _session(session)
 {
     _name = fmt::format("S_NEGO_L({})=>R({})",
                         _session->local_address().to_string(),

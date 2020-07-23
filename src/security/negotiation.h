@@ -15,10 +15,7 @@ extern const std::set<std::string> supported_mechanisms;
 class negotiation
 {
 public:
-    negotiation(rpc_session *session)
-        : _session(session),
-          _user_name("unknown"),
-          _status(negotiation_status::type::SASL_LIST_MECHANISMS)
+    negotiation() : _user_name("unknown"), _status(negotiation_status::type::SASL_LIST_MECHANISMS)
     {
     }
     virtual ~negotiation() = 0;
@@ -29,8 +26,6 @@ public:
     bool negotiation_succeed() const { return _status == negotiation_status::type::SASL_SUCC; }
 
 protected:
-    // the lifetime of _session should be longer than client_negotiation
-    rpc_session *_session;
     std::string _user_name;
     negotiation_status::type _status;
 };
