@@ -6,6 +6,8 @@
 
 namespace dsn {
 namespace security {
+const std::set<std::string> supported_mechanisms{"GSSAPI"};
+
 negotiation::~negotiation() {}
 }
 }

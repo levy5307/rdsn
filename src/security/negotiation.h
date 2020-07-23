@@ -10,7 +10,7 @@
 
 namespace dsn {
 namespace security {
-static const std::set<std::string> supported_mechanisms{"GSSAPI"};
+extern const std::set<std::string> supported_mechanisms;
 
 class negotiation
 {
