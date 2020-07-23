@@ -185,5 +185,19 @@ error_s sasl_init(bool is_server)
     return ret;
 }
 
+error_s retrive_user_name(sasl_conn_t *sasl_conn, std::string &output)
+{
+    char *username = nullptr;
+    error_s err_s = call_sasl_func(sasl_conn, [&]() {
+        return sasl_getprop(sasl_conn, SASL_USERNAME, (const void **)&username);
+    });
+
+    if (err_s.is_ok()) {
+        output = username;
+        output = output.substr(0, output.find_last_of('@'));
+        output = output.substr(0, output.find_first_of('/'));
+    }
+    return err_s;
+}
 } // namespace security
 } // namespace dsn

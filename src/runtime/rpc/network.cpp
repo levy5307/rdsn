@@ -442,10 +442,10 @@ void rpc_session::handle_negotiation_message(message_ex *msg)
     }
     if (is_client()) {
         dassert(_client_negotiation, "negotiation not created by authentiation is necessary");
-        _client_negotiation->handle_message_from_server(msg);
+        _client_negotiation->handle_message(msg);
     } else {
         dassert(_server_negotiation, "negotiation not created by authentiation is necessary");
-        _server_negotiation->handle_message_from_client(msg);
+        _server_negotiation->handle_message(msg);
     }
 }
 

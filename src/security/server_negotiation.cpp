@@ -5,17 +5,15 @@
 #include <dsn/tool-api/rpc_address.h>
 #include <security/init.h>
 #include <security/server_negotiation.h>
+#include <security/sasl_utils.h>
 #include <dsn/dist/fmt_logging.h>
+#include "negotiation.h"
 
 namespace dsn {
 namespace security {
 
-static const std::set<std::string> supported_mechanisms{"GSSAPI"};
-
 server_negotiation::server_negotiation(rpc_session *session)
-    : _session(session),
-      _user_name("unknown"),
-      _status(negotiation_status::type::SASL_LIST_MECHANISMS)
+    : negotiation(session)
 {
     _name = fmt::format("S_NEGO_L({})=>R({})",
                         _session->local_address().to_string(),
@@ -164,22 +162,7 @@ error_s server_negotiation::do_sasl_step(const blob &input, blob &output)
     return err_s;
 }
 
-error_s server_negotiation::retrive_user_name_from_sasl_conn(std::string &output)
-{
-    char *username = nullptr;
-    error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        return sasl_getprop(_sasl_conn.get(), SASL_USERNAME, (const void **)&username);
-    });
-
-    if (err_s.is_ok()) {
-        output = username;
-        output = output.substr(0, output.find_last_of('@'));
-        output = output.substr(0, output.find_first_of('/'));
-    }
-    return err_s;
-}
-
-void server_negotiation::handle_message_from_client(message_ptr msg)
+void server_negotiation::handle_message(message_ptr msg)
 {
     if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
         on_list_mechanisms(msg);
@@ -226,7 +209,7 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
     }
 
     if (err_s.code() == ERR_OK) {
-        error_s err = retrive_user_name_from_sasl_conn(_user_name);
+        error_s err = retrive_user_name(_sasl_conn.get(), _user_name);
         dassert_f(err.is_ok(), "{}: unexpected result({})", _name, err.description());
         ddebug_f("{}: negotiation succ for user({})", _name, _user_name);
         succ_negotiation(req);
