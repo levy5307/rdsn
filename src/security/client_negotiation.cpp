@@ -73,7 +73,7 @@ void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
 
     std::string matched_mechanism = "";
     std::vector<std::string> server_supported_mechanisms;
-    std::string resp_string = resp.msg.to_string();
+    const std::string resp_string = resp.msg.to_string();
     dsn::utils::split_args(resp_string.c_str(), server_supported_mechanisms, ',');
 
     for (const std::string &server_supported_mechanism : server_supported_mechanisms) {
