@@ -196,8 +196,7 @@ protected:
 */
 
 namespace security {
-class client_negotiation;
-class server_negotiation;
+class negotiation;
 }
 
 class rpc_client_matcher;
@@ -332,8 +331,7 @@ private:
     std::atomic_int _delay_server_receive_ms;
 
     // for negotiation
-    std::shared_ptr<security::client_negotiation> _client_negotiation;
-    std::shared_ptr<security::server_negotiation> _server_negotiation;
+    std::shared_ptr<security::negotiation> _negotiation;
 };
 
 // --------- inline implementation --------------

@@ -440,13 +440,9 @@ void rpc_session::handle_negotiation_message(message_ex *msg)
             _net.engine()->reply(msg->create_response(), ERR_HANDLER_NOT_FOUND);
         return;
     }
-    if (is_client()) {
-        dassert(_client_negotiation, "negotiation not created by authentiation is necessary");
-        _client_negotiation->handle_message(msg);
-    } else {
-        dassert(_server_negotiation, "negotiation not created by authentiation is necessary");
-        _server_negotiation->handle_message(msg);
-    }
+
+    dassert(_negotiation, "negotiation not created by authentiation is necessary");
+    _negotiation->handle_message(msg);
 }
 
 bool rpc_session::prepare_auth_for_normal_message(message_ex *msg)
@@ -455,19 +451,11 @@ bool rpc_session::prepare_auth_for_normal_message(message_ex *msg)
     bool reject_as_unauthenticated = false;
 
     if (_net.need_auth_connection() && _net.mandatory_auth()) {
-        if (is_client()) {
-            dassert(_client_negotiation, "negotiation not created by authentiation is necessary");
-            if (!_client_negotiation->negotiation_succeed())
-                reject_as_unauthenticated = true;
-            else
-                msg->user_name = _client_negotiation->user_name();
-        } else {
-            dassert(_server_negotiation, "negotiation not created by authentiation is necessary");
-            if (!_server_negotiation->negotiation_succeed())
-                reject_as_unauthenticated = true;
-            else
-                msg->user_name = _server_negotiation->user_name();
-        }
+        dassert(_negotiation, "negotiation not created by authentiation is necessary");
+        if (!_negotiation->negotiation_succeed())
+            reject_as_unauthenticated = true;
+        else
+            msg->user_name = _negotiation->user_name();
     } else {
         msg->user_name = "unknown";
     }
@@ -549,12 +537,11 @@ void rpc_session::negotiation()
 void rpc_session::auth_negotiation()
 {
     if (is_client()) {
-        _client_negotiation = std::make_shared<dsn::security::client_negotiation>(this);
-        _client_negotiation->start_negotiate();
+        _negotiation = std::make_shared<dsn::security::client_negotiation>(this);
     } else {
-        _server_negotiation = std::make_shared<dsn::security::server_negotiation>(this);
-        _server_negotiation->start_negotiate();
+        _negotiation = std::make_shared<dsn::security::server_negotiation>(this);
     }
+    _negotiation->start_negotiate();
 }
 
 void rpc_session::on_failure(bool is_write)
