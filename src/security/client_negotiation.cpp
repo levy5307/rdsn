@@ -12,7 +12,9 @@
 namespace dsn {
 namespace security {
 
-client_negotiation::client_negotiation(rpc_session *session) : negotiation(), _session(session)
+client_negotiation::client_negotiation(rpc_session *session)
+    : negotiation(),
+    _session(session)
 {
     _name = fmt::format("C_NEGO_L({})=>R({})",
                         dsn_primary_address().to_string(),
@@ -73,7 +75,7 @@ void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
 
     std::string matched_mechanism = "";
     std::vector<std::string> server_supported_mechanisms;
-    const std::string resp_string = resp.msg.to_string();
+    std::string resp_string = resp.msg.to_string();
     dsn::utils::split_args(resp_string.c_str(), server_supported_mechanisms, ',');
 
     for (const std::string &server_supported_mechanism : server_supported_mechanisms) {
