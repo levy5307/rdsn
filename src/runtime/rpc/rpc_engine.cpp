@@ -38,7 +38,7 @@
 #include <dsn/tool-api/async_calls.h>
 #include <dsn/cpp/serialization.h>
 #include <dsn/utility/rand.h>
-#include <security/rpc_codes.h>
+#include "runtime/security/rpc_codes.h"
 
 #include "rpc_engine.h"
 #include "runtime/service_engine.h"

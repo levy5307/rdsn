@@ -5,7 +5,7 @@
 #pragma once
 
 #include <dsn/utility/errors.h>
-#include <security/init.h>
+#include <runtime/security/init.h>
 
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>

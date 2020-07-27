@@ -38,7 +38,7 @@
 #include <fmt/format.h>
 
 #include <dsn/dist/replication/replication_ddl_client.h>
-#include <security/access_controller.h>
+#include "runtime/security/access_controller.h"
 #include <dsn/dist/replication/duplication_common.h>
 #include <dsn/dist/replication/replication_other_types.h>
 #include <dsn/tool-api/group_address.h>

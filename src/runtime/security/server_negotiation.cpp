@@ -3,9 +3,9 @@
 // can be found in the LICENSE file in the root directory of this source tree.
 
 #include <dsn/tool-api/rpc_address.h>
-#include <security/init.h>
-#include <security/server_negotiation.h>
-#include <security/sasl_utils.h>
+#include <runtime/security/init.h>
+#include <runtime/security/server_negotiation.h>
+#include <runtime/security/sasl_utils.h>
 #include <dsn/dist/fmt_logging.h>
 #include "negotiation.h"
 

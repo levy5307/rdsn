@@ -4,9 +4,9 @@
 
 #include "rpc_codes.h"
 #include <dsn/tool-api/rpc_address.h>
-#include <security/init.h>
-#include <security/client_negotiation.h>
-#include <security/sasl_utils.h>
+#include <runtime/security/init.h>
+#include <runtime/security/client_negotiation.h>
+#include <runtime/security/sasl_utils.h>
 #include <dsn/dist/fmt_logging.h>
 
 namespace dsn {

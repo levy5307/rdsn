@@ -24,8 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include <security/client_negotiation.h>
-#include <security/server_negotiation.h>
+#include "runtime/security/client_negotiation.h"
 
 #include "asio_rpc_session.h"
 

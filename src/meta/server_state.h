@@ -33,7 +33,7 @@
 #include <dsn/dist/block_service.h>
 #include <dsn/tool-api/task_tracker.h>
 #include <dsn/perf_counter/perf_counter_wrapper.h>
-#include <security/access_controller.h>
+#include "runtime/security/access_controller.h"
 
 #include "common/replication_common.h"
 #include "meta_data.h"

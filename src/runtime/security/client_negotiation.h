@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <security/negotiation_utils.h>
+#include "runtime/security/negotiation_utils.h"
 #include <dsn/utility/errors.h>
 #include "negotiation.h"
 
