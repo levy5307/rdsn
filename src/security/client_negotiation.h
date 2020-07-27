@@ -16,15 +16,15 @@ class client_negotiation : public negotiation
 public:
     client_negotiation(rpc_session *session);
     void start_negotiate();
-    void handle_message(message_ptr msg);
+    void handle_message(message_ex *msg);
 
 private:
     void list_mechanisms();
-    void recv_mechanisms(const message_ptr &mechs_msg);
+    void recv_mechanisms(message_ex *mechs_msg);
     void select_mechanism(dsn::string_view mech);
-    void mechanism_selected(const message_ptr &mechs_msg);
+    void mechanism_selected(message_ex *mechs_msg);
     void initiate_negotiation();
-    void handle_challenge(const message_ptr &challenge_msg);
+    void handle_challenge(message_ex *challenge_msg);
 
     error_s do_sasl_client_init();
     error_s send_sasl_initiate_msg();

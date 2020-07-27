@@ -21,7 +21,7 @@ public:
     virtual ~negotiation() = 0;
 
     virtual void start_negotiate() = 0;
-    virtual void handle_message(message_ptr msg) = 0;
+    virtual void handle_message(message_ex *msg) = 0;
     const char *user_name() const { return _user_name.c_str(); }
     bool negotiation_succeed() const { return _status == negotiation_status::type::SASL_SUCC; }
 

@@ -13,12 +13,13 @@ namespace security {
 
 typedef rpc_holder<negotiation_message, negotiation_message> negotiation_rpc;
 
-class negotiation_manager : public serverlet<negotiation_manager> {
+class negotiation_manager : public serverlet<negotiation_manager>
+{
 public:
     negotiation_manager();
-    void on_negotiation(negotiation_rpc rpc);
+    void on_negotiation(message_ex *msg);
     void start_negotiation();
-    negotiation* get_negotiation(rpc_session_ptr rpc_session);
+    negotiation *get_negotiation(rpc_session_ptr rpc_session);
     void remove_negotiation(rpc_session_ptr rpc_session);
 
 private:
