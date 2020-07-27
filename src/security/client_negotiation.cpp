@@ -12,7 +12,9 @@
 namespace dsn {
 namespace security {
 
-client_negotiation::client_negotiation(rpc_session *session) : negotiation(), _session(session)
+client_negotiation::client_negotiation(rpc_session *session)
+    : negotiation(),
+    _session(session)
 {
     _name = fmt::format("C_NEGO_L({})=>R({})",
                         dsn_primary_address().to_string(),
@@ -25,7 +27,7 @@ void client_negotiation::start_negotiate()
     list_mechanisms();
 }
 
-void client_negotiation::handle_message(message_ex *msg)
+void client_negotiation::handle_message(message_ptr msg)
 {
     if (msg->error() == ERR_HANDLER_NOT_FOUND && !_session->mandantory_auth()) {
         dwarn_f("{}: treat negotiation succeed as server doesn't support it, user_name in later "
@@ -57,7 +59,7 @@ void client_negotiation::list_mechanisms()
     send(req);
 }
 
-void client_negotiation::recv_mechanisms(message_ex *mechs_msg)
+void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
 {
     negotiation_message resp;
     dsn::unmarshall(mechs_msg, resp);
@@ -106,10 +108,10 @@ void client_negotiation::select_mechanism(dsn::string_view mech)
     send(req);
 }
 
-void client_negotiation::mechanism_selected(message_ex *mechs_msg)
+void client_negotiation::mechanism_selected(const message_ptr &mechs_msg)
 {
     negotiation_message resp;
-    dsn::unmarshall(mechs_msg, resp);
+    dsn::unmarshall(mechs_msg.get(), resp);
     if (resp.status == negotiation_status::type::SASL_SELECT_MECHANISMS_OK) {
         initiate_negotiation();
     } else {
@@ -153,7 +155,7 @@ void client_negotiation::initiate_negotiation()
     }
 }
 
-void client_negotiation::handle_challenge(message_ex *challenge_msg)
+void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
 {
     negotiation_message challenge;
     dsn::unmarshall(challenge_msg, challenge);

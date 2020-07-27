@@ -21,7 +21,7 @@ server_negotiation::server_negotiation(rpc_session *session) : negotiation(), _s
 
 void server_negotiation::start_negotiate() { ddebug_f("{}: start negotiation", _name); }
 
-void server_negotiation::reply(message_ex *req, const negotiation_message &response_data)
+void server_negotiation::reply(const message_ptr &req, const negotiation_message &response_data)
 {
     _status = response_data.status;
 
@@ -36,7 +36,7 @@ void server_negotiation::reply(message_ex *req, const negotiation_message &respo
     _session->send_message(resp);
 }
 
-void server_negotiation::fail_negotiation(message_ex *req, dsn::string_view reason)
+void server_negotiation::fail_negotiation(const message_ptr &req, dsn::string_view reason)
 {
     negotiation_message response;
     response.status = negotiation_status::type::SASL_AUTH_FAIL;
@@ -46,7 +46,7 @@ void server_negotiation::fail_negotiation(message_ex *req, dsn::string_view reas
     _session->complete_negotiation(false);
 }
 
-void server_negotiation::succ_negotiation(message_ex *req)
+void server_negotiation::succ_negotiation(const message_ptr &req)
 {
     negotiation_message response;
     response.status = negotiation_status::type::SASL_SUCC;
@@ -55,7 +55,7 @@ void server_negotiation::succ_negotiation(message_ex *req)
     _session->complete_negotiation(true);
 }
 
-void server_negotiation::on_list_mechanisms(message_ex *m)
+void server_negotiation::on_list_mechanisms(const message_ptr &m)
 {
     negotiation_message request;
     dsn::unmarshall(m, request);
@@ -75,7 +75,7 @@ void server_negotiation::on_list_mechanisms(message_ex *m)
     }
 }
 
-void server_negotiation::on_select_mechanism(message_ex *m)
+void server_negotiation::on_select_mechanism(const message_ptr &m)
 {
     negotiation_message request;
     dsn::unmarshall(m, request);
@@ -161,7 +161,7 @@ error_s server_negotiation::do_sasl_step(const blob &input, blob &output)
     return err_s;
 }
 
-void server_negotiation::handle_message(message_ex *msg)
+void server_negotiation::handle_message(message_ptr msg)
 {
     if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
         on_list_mechanisms(msg);
@@ -175,7 +175,7 @@ void server_negotiation::handle_message(message_ex *msg)
     handle_client_response_on_challenge(msg);
 }
 
-void server_negotiation::handle_client_response_on_challenge(message_ex *req)
+void server_negotiation::handle_client_response_on_challenge(const message_ptr &req)
 {
     dinfo_f("{}: recv response negotiation message from client", _name);
     negotiation_message client_message;
