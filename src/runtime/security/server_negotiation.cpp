@@ -83,7 +83,7 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
         _selected_mechanism = request.msg.to_string();
         ddebug_f("{}: client select mechanism({})", _name, _selected_mechanism);
 
-        if (supported_mechanisms.find(_selected_mechanism) != supported_mechanisms.end()) {
+        if (supported_mechanisms.find(_selected_mechanism) == supported_mechanisms.end()) {
             std::string error_msg =
                 fmt::format("the mechanism of {} is not supported", _selected_mechanism);
             derror_f("{}", error_msg);
