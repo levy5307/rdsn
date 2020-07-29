@@ -1,6 +1,7 @@
 add_subdirectory(test)
 add_subdirectory(rpc)
 add_subdirectory(task)
+add_subdirectory(security)
 
 # TODO(zlw) remove perf_counter from dsn_runtime after the refactor by WuTao
 add_library(dsn_runtime STATIC
