@@ -15,9 +15,7 @@ extern const std::set<std::string> supported_mechanisms;
 class negotiation
 {
 public:
-    negotiation() : _user_name("unknown"), _status(negotiation_status::type::SASL_LIST_MECHANISMS)
-    {
-    }
+    negotiation() : _user_name("unknown"), _status(negotiation_status::type::INVALID) {}
     virtual ~negotiation() = 0;
 
     virtual void start_negotiate() = 0;

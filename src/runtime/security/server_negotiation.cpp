@@ -19,7 +19,25 @@ server_negotiation::server_negotiation(rpc_session *session) : negotiation(), _s
                         _session->remote_address().to_string());
 }
 
-void server_negotiation::start_negotiate() { ddebug_f("{}: start negotiation", _name); }
+void server_negotiation::start_negotiate()
+{
+    _status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    ddebug_f("{}: start negotiation", _name);
+}
+
+void server_negotiation::handle_message(message_ptr msg)
+{
+    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
+        on_list_mechanisms(msg);
+        return;
+    }
+    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS_RESP) {
+        on_select_mechanism(msg);
+        return;
+    }
+
+    handle_client_response_on_challenge(msg);
+}
 
 void server_negotiation::reply(const message_ptr &req, const negotiation_message &response_data)
 {
@@ -159,20 +177,6 @@ error_s server_negotiation::do_sasl_step(const blob &input, blob &output)
 
     output = blob::create_from_bytes(msg, msg_len);
     return err_s;
-}
-
-void server_negotiation::handle_message(message_ptr msg)
-{
-    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
-        on_list_mechanisms(msg);
-        return;
-    }
-    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS_RESP) {
-        on_select_mechanism(msg);
-        return;
-    }
-
-    handle_client_response_on_challenge(msg);
 }
 
 void server_negotiation::handle_client_response_on_challenge(const message_ptr &req)

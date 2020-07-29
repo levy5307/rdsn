@@ -4,7 +4,7 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include runtime / security / security_types.h
+#include "security_types.h"
 
 #include <algorithm>
 #include <ostream>

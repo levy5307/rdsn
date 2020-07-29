@@ -98,7 +98,7 @@ thrift_description = [
                 "remove": ["\"dsn_types.h\""]
             },
             "_types.cpp": {
-                "add": ["runtime/security/security_types.h"],
+                "add": ["\"security_types.h\""],
                 "remove": ["\"security_types.h\""]
             }
         }
