@@ -4,7 +4,7 @@
  * DO NOT EDIT UNLESS YOU ARE SURE THAT YOU KNOW WHAT YOU ARE DOING
  *  @generated
  */
-#include <runtime/security/security_types.h>
+#include runtime / security / security_types.h
 
 #include <algorithm>
 #include <ostream>
@@ -14,16 +14,16 @@
 namespace dsn {
 namespace security {
 
-int _knegotiation_statusValues[] = {negotiation_status::type::INVALID,
-                                    negotiation_status::type::SASL_LIST_MECHANISMS,
-                                    negotiation_status::type::SASL_LIST_MECHANISMS_RESP,
-                                    negotiation_status::type::SASL_SELECT_MECHANISMS,
-                                    negotiation_status::type::SASL_SELECT_MECHANISMS_OK,
-                                    negotiation_status::type::SASL_INITIATE,
-                                    negotiation_status::type::SASL_CHALLENGE,
-                                    negotiation_status::type::SASL_RESPONSE,
-                                    negotiation_status::type::SASL_SUCC,
-                                    negotiation_status::type::SASL_AUTH_FAIL};
+int _knegotiation_statusValues[] = {negotiation_status::INVALID,
+                                    negotiation_status::SASL_LIST_MECHANISMS,
+                                    negotiation_status::SASL_LIST_MECHANISMS_RESP,
+                                    negotiation_status::SASL_SELECT_MECHANISMS,
+                                    negotiation_status::SASL_SELECT_MECHANISMS_OK,
+                                    negotiation_status::SASL_INITIATE,
+                                    negotiation_status::SASL_CHALLENGE,
+                                    negotiation_status::SASL_RESPONSE,
+                                    negotiation_status::SASL_SUCC,
+                                    negotiation_status::SASL_AUTH_FAIL};
 const char *_knegotiation_statusNames[] = {"INVALID",
                                            "SASL_LIST_MECHANISMS",
                                            "SASL_LIST_MECHANISMS_RESP",
@@ -155,5 +155,6 @@ void negotiation_message::printTo(std::ostream &out) const
         << "msg=" << to_string(msg);
     out << ")";
 }
+
 } // namespace security
 } // namespace dsn

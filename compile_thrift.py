@@ -87,9 +87,10 @@ thrift_description = [
     },
     {
         "name": "security",
-        "path": "src/core/security",
+        "path": "src/runtime/security",
         "file_move": {
-            "_types.h": "include/dsn/security"
+            "_types.h": "src/runtime/security",
+            "_types.cpp": "src/runtime/security"
         },
         "include_fix": {
             "_types.h": {
@@ -97,7 +98,7 @@ thrift_description = [
                 "remove": ["\"dsn_types.h\""]
             },
             "_types.cpp": {
-                "add": ["<dsn/security/security_types.h>"],
+                "add": ["runtime/security/security_types.h"],
                 "remove": ["\"security_types.h\""]
             }
         }
