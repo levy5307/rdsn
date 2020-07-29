@@ -28,7 +28,6 @@
 #include <dsn/tool-api/network.h>
 #include "runtime/security/client_negotiation.h"
 #include "runtime/security/server_negotiation.h"
-#include "runtime/security/rpc_codes.h"
 
 #include "message_parser_manager.h"
 #include "rpc_engine.h"
@@ -302,8 +301,8 @@ void rpc_session::send_message(message_ex *msg)
         // here we only allow two cases to send message:
         //  case 1: session's state is SS_CONNECTED
         //  case 2: session is sending negotiation message
-        if (SS_CONNECTED == _connect_state || is_negotiation_message(msg->rpc_code())) {
-            if (is_negotiation_message(msg->rpc_code()) && is_client()) {
+        if (SS_CONNECTED == _connect_state || security::is_negotiation_message(msg->rpc_code())) {
+            if (security::is_negotiation_message(msg->rpc_code()) && is_client()) {
                 dassert(SS_NEGOTIATION == _connect_state,
                         "invalid rpc_session state(%d)",
                         _connect_state);
@@ -481,7 +480,7 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     msg->to_address = _net.address();
     msg->io_session = this;
 
-    if (is_negotiation_message(msg->rpc_code())) {
+    if (security::is_negotiation_message(msg->rpc_code())) {
         handle_negotiation_message(msg);
         return true;
     }

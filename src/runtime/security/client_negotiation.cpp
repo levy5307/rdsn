@@ -2,7 +2,6 @@
 // This source code is licensed under the Apache License Version 2.0, which
 // can be found in the LICENSE file in the root directory of this source tree.
 
-#include "rpc_codes.h"
 #include <dsn/tool-api/rpc_address.h>
 #include <runtime/security/init.h>
 #include <runtime/security/client_negotiation.h>
@@ -12,9 +11,7 @@
 namespace dsn {
 namespace security {
 
-client_negotiation::client_negotiation(rpc_session *session)
-    : negotiation(),
-    _session(session)
+client_negotiation::client_negotiation(rpc_session *session) : negotiation(), _session(session)
 {
     _name = fmt::format("C_NEGO_L({})=>R({})",
                         dsn_primary_address().to_string(),
