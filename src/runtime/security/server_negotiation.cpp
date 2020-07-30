@@ -41,8 +41,6 @@ void server_negotiation::handle_message(message_ptr msg)
 
 void server_negotiation::reply(const message_ptr &req, const negotiation_message &response_data)
 {
-    _status = response_data.status;
-
     message_ptr resp = req->create_response();
     strncpy(resp->header->server.error_name,
             ERR_OK.to_string(),
@@ -57,7 +55,7 @@ void server_negotiation::reply(const message_ptr &req, const negotiation_message
 void server_negotiation::fail_negotiation(const message_ptr &req, dsn::string_view reason)
 {
     negotiation_message response;
-    response.status = negotiation_status::type::SASL_AUTH_FAIL;
+    _status = response.status = negotiation_status::type::SASL_AUTH_FAIL;
     response.msg = dsn::blob::create_from_bytes(reason.data(), reason.length());
     reply(req, response);
 
@@ -67,7 +65,7 @@ void server_negotiation::fail_negotiation(const message_ptr &req, dsn::string_vi
 void server_negotiation::succ_negotiation(const message_ptr &req)
 {
     negotiation_message response;
-    response.status = negotiation_status::type::SASL_SUCC;
+    _status = response.status = negotiation_status::type::SASL_SUCC;
     reply(req, response);
 
     _session->complete_negotiation(true);
@@ -81,7 +79,7 @@ void server_negotiation::on_list_mechanisms(const message_ptr &m)
         std::string mech_list = join(supported_mechanisms.begin(), supported_mechanisms.end(), ",");
         ddebug_f("{}: reply server mechs({})", _name, mech_list);
         negotiation_message response;
-        response.status = negotiation_status::type::SASL_LIST_MECHANISMS_RESP;
+        _status = response.status = negotiation_status::type::SASL_LIST_MECHANISMS_RESP;
         response.msg = dsn::blob::create_from_bytes(std::move(mech_list));
         reply(m, response);
     } else {
@@ -119,7 +117,7 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
         }
 
         negotiation_message response;
-        response.status = negotiation_status::type::SASL_SELECT_MECHANISMS_OK;
+        _status = response.status = negotiation_status::type::SASL_SELECT_MECHANISMS_OK;
         reply(m, response);
     } else {
         dwarn_f("{}: got message({}) while expect({})",
@@ -218,7 +216,7 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
         succ_negotiation(req);
     } else {
         negotiation_message challenge;
-        challenge.status = negotiation_status::type::SASL_CHALLENGE;
+        _status = challenge.status = negotiation_status::type::SASL_CHALLENGE;
         challenge.msg = output;
         reply(req, challenge);
     }

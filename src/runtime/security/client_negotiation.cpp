@@ -52,7 +52,7 @@ void client_negotiation::handle_message(message_ptr msg)
 void client_negotiation::list_mechanisms()
 {
     negotiation_message req;
-    req.status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    _status = req.status = negotiation_status::type::SASL_LIST_MECHANISMS;
     send(req);
 }
 
@@ -99,7 +99,7 @@ void client_negotiation::select_mechanism(dsn::string_view mech)
     _selected_mechanism.assign(mech.data(), mech.length());
 
     negotiation_message req;
-    req.status = negotiation_status::type::SASL_SELECT_MECHANISMS;
+    _status = req.status = negotiation_status::type::SASL_SELECT_MECHANISMS;
     req.msg = dsn::blob::create_from_bytes(mech.data(), mech.length());
 
     send(req);
@@ -173,7 +173,7 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
         }
 
         negotiation_message resp;
-        resp.status = negotiation_status::type::SASL_RESPONSE;
+        _status = resp.status = negotiation_status::type::SASL_RESPONSE;
         resp.msg = response_msg;
         send(resp);
         return;
@@ -228,7 +228,7 @@ error_s client_negotiation::send_sasl_initiate_msg()
     error_code code = err_s.code();
     if (code == ERR_OK || code == ERR_INCOMPLETE) {
         negotiation_message req;
-        req.status = negotiation_status::type::SASL_INITIATE;
+        _status = req.status = negotiation_status::type::SASL_INITIATE;
         req.msg = dsn::blob::create_from_bytes(msg, msg_len);
         send(req);
     }
@@ -251,7 +251,6 @@ error_s client_negotiation::do_sasl_step(const dsn::blob &input, blob &output)
 
 void client_negotiation::send(const negotiation_message &n)
 {
-    _status = n.status;
     message_ptr msg = message_ex::create_request(RPC_NEGOTIATION);
     dsn::marshall(msg.get(), n);
     _session->send_message(msg.get());
