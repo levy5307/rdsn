@@ -535,11 +535,7 @@ void rpc_session::negotiation()
 
 void rpc_session::auth_negotiation()
 {
-    if (is_client()) {
-        _negotiation = std::make_shared<dsn::security::client_negotiation>(this);
-    } else {
-        _negotiation = std::make_shared<dsn::security::server_negotiation>(this);
-    }
+    _negotiation = security::create_negotiation(is_client(), this);
     _negotiation->start_negotiate();
 }
 

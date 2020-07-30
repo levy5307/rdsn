@@ -28,5 +28,7 @@ protected:
     negotiation_status::type _status;
 };
 
+std::unique_ptr<negotiation> create_negotiation(bool is_client, rpc_session *session);
+
 } // namespace security
 } // namespace dsn
