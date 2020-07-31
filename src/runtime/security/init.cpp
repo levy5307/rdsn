@@ -60,7 +60,7 @@ private:
     std::string _service_fqdn;
     std::string _service_name;
 
-    int64_t _cred_expire_timestamp;
+    uint64_t _cred_expire_timestamp;
 
     std::shared_ptr<boost::asio::deadline_timer> _timer;
 
@@ -158,22 +158,13 @@ static error_s parse_username_from_principal(krb5_const_principal principal, std
     return error_s::make(ERR_OK);
 }
 
-static std::string from_unix_seconds(int64_t unix_seconds)
-{
-    char buffer[128];
-    utils::time_ms_to_date_time(unix_seconds * 1000, buffer, 128);
-    return std::string(buffer);
-}
-
-static int64_t current_unix_seconds() { return utils::get_current_physical_time_ns() / 1000000000; }
-
 // inline implementation of kinit_context
 kinit_context::~kinit_context() { krb5_get_init_creds_opt_free(g_krb5_context, _opt); }
 
 void kinit_context::schedule_renew_credentials()
 {
     // reserve 300 seconds for renew
-    int64_t renew_gap = _cred_expire_timestamp - current_unix_seconds() - 300;
+    int64_t renew_gap = _cred_expire_timestamp - utils::get_current_physical_time_s() - 300;
     if (renew_gap < 300)
         renew_gap = 300;
     ddebug("schedule to renew credentials in %d seconds later", renew_gap);
@@ -235,7 +226,7 @@ error_s kinit_context::get_credentials()
     _cred_expire_timestamp = creds.times.endtime;
     ddebug("get credentials of %s from KDC ok, expires at %s",
            _principal_name.c_str(),
-           from_unix_seconds(_cred_expire_timestamp).c_str());
+           utils::time_s_to_date_time(_cred_expire_timestamp).c_str());
     return err;
 }
 
