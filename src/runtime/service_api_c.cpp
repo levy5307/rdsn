@@ -45,6 +45,8 @@
 
 #ifdef DSN_ENABLE_GPERF
 #include <gperftools/malloc_extension.h>
+#include <dsn/dist/fmt_logging.h>
+
 #endif
 
 #include "service_engine.h"
@@ -471,16 +473,16 @@ bool run(const char *config_file,
     if (dsn_config_get_value_bool("security", "open_auth", false, "whether open auth")) {
         // before start node, we must initialize the kerberos and sasl, because the rpc engine will
         // be started when starting node
-        ::dsn::error_s err_s = ::dsn::security::init_kerberos(sleep_after_init);
+        dsn::error_s err_s = dsn::security::init_kerberos(sleep_after_init);
         if (!err_s.is_ok()) {
-            derror("initialize kerberos failed, with err = %s", err_s.description().c_str());
+            derror_f("initialize kerberos failed, with err = {}", err_s.description());
             return false;
         }
         ddebug("initialize kerberos succeed");
 
-        err_s = ::dsn::security::sasl_init(sleep_after_init);
+        err_s = dsn::security::sasl_init(sleep_after_init);
         if (!err_s.is_ok()) {
-            derror("initialize sasl failed, with err = %s", err_s.description().c_str());
+            derror_f("initialize sasl failed, with err = {}", err_s.description());
             return false;
         }
         ddebug("initialize sasl succeed");
