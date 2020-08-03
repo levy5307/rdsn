@@ -170,15 +170,13 @@ DSN_API void dsn_rpc_forward(dsn::message_ex *request, dsn::rpc_address addr)
 //
 //------------------------------------------------------------------------------
 
-static bool run(const char *config_file,
-                const char *config_arguments,
-                bool sleep_after_init,
-                std::string &app_list);
+static bool
+run(const char *config_file, const char *config_arguments, bool is_server, std::string &app_list);
 
-DSN_API bool dsn_run_config(const char *config, bool sleep_after_init)
+DSN_API bool dsn_run_config(const char *config, bool is_server)
 {
     std::string name;
-    return run(config, nullptr, sleep_after_init, name);
+    return run(config, nullptr, is_server, name);
 }
 
 NORETURN DSN_API void dsn_exit(int code)
@@ -229,7 +227,7 @@ DSN_API bool dsn_mimic_app(const char *app_role, int index)
 //       port variable specified in config.ini
 //       config.ini to start ALL apps as a new process
 //
-DSN_API void dsn_run(int argc, char **argv, bool sleep_after_init)
+DSN_API void dsn_run(int argc, char **argv, bool is_server)
 {
     if (argc < 2) {
         printf(
@@ -268,10 +266,7 @@ DSN_API void dsn_run(int argc, char **argv, bool sleep_after_init)
         }
     }
 
-    if (!run(config,
-             config_args.size() > 0 ? config_args.c_str() : nullptr,
-             sleep_after_init,
-             app_list)) {
+    if (!run(config, config_args.size() > 0 ? config_args.c_str() : nullptr, is_server, app_list)) {
         printf("run the system failed\n");
         dsn_exit(-1);
         return;
@@ -344,7 +339,7 @@ static std::string dsn_log_prefixed_message_func()
 
 bool run(const char *config_file,
          const char *config_arguments,
-         bool sleep_after_init,
+         bool is_server,
          std::string &app_list)
 {
     dsn_global_init();
@@ -473,14 +468,14 @@ bool run(const char *config_file,
     if (dsn_config_get_value_bool("security", "open_auth", false, "whether open auth")) {
         // before start node, we must initialize the kerberos and sasl, because the rpc engine will
         // be started when starting node
-        dsn::error_s err_s = dsn::security::init_kerberos(sleep_after_init);
+        dsn::error_s err_s = dsn::security::init_kerberos(is_server);
         if (!err_s.is_ok()) {
             derror_f("initialize kerberos failed, with err = {}", err_s.description());
             return false;
         }
         ddebug("initialize kerberos succeed");
 
-        err_s = dsn::security::sasl_init(sleep_after_init);
+        err_s = dsn::security::sasl_init(is_server);
         if (!err_s.is_ok()) {
             derror_f("initialize sasl failed, with err = {}", err_s.description());
             return false;
@@ -552,7 +547,7 @@ bool run(const char *config_file,
     // start the tool
     dsn_all.tool->run();
 
-    if (sleep_after_init) {
+    if (is_server) {
         while (true) {
             std::this_thread::sleep_for(std::chrono::hours(1));
         }
