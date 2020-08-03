@@ -16,6 +16,7 @@
 #include <mutex>
 #include <functional>
 #include <boost/asio/deadline_timer.hpp>
+#include <dsn/dist/fmt_logging.h>
 
 #include "utils/shared_io_service.h"
 
@@ -78,9 +79,7 @@ void init_krb5_ctx()
     std::call_once(once, [&]() {
         int64_t err = krb5_init_context(&g_krb5_context);
         if (err != 0) {
-            dassert(false,
-                    "init kerberos context failed, with kerberos  error_code = %" PRId64 "",
-                    err);
+            dassert_f(false, "init kerberos context failed, with kerberos  error_code = {}", err);
         }
     });
 }
@@ -171,7 +170,7 @@ void kinit_context::schedule_renew_credentials()
     int64_t renew_gap = _cred_expire_timestamp - utils::get_current_physical_time_s() - 300;
     if (renew_gap < 300)
         renew_gap = 300;
-    ddebug("schedule to renew credentials in %d seconds later", renew_gap);
+    ddebug_f("schedule to renew credentials in {} seconds later", renew_gap);
 
     // why don't we use timers in rDSN framework?
     //  1. currently the rdsn framework may not started yet.
@@ -192,7 +191,7 @@ void kinit_context::schedule_renew_credentials()
         } else if (err == boost::system::errc::operation_canceled) {
             dwarn("the renew credentials timer is cancelled");
         } else {
-            dassert(false, "unhandled error(%s)", err.message().c_str());
+            dassert_f(false, "unhandled error({})", err.message());
         }
     });
 }
@@ -212,25 +211,24 @@ error_s kinit_context::get_credentials()
                   err,
                   "get_init_cred");
     if (!err.is_ok()) {
-        dwarn("get credentials of %s from KDC failed, reason(%s)",
-              _principal_name.c_str(),
-              err.description().c_str());
+        dwarn_f("get credentials of {} from KDC failed, reason({})",
+                _principal_name,
+                err.description());
         return err;
     }
     auto cleanup = dsn::defer([&]() { krb5_free_cred_contents(g_krb5_context, &creds); });
 
     WRAP_KRB5_ERR(krb5_cc_store_cred(g_krb5_context, _ccache, &creds), err, "store_cred");
     if (!err.is_ok()) {
-        dwarn("store credentials of %s to cache failed, err(%s)",
-              _principal_name.c_str(),
-              err.description().c_str());
+        dwarn_f(
+            "store credentials of {} to cache failed, err({})", _principal_name, err.description());
         return err;
     }
 
     _cred_expire_timestamp = creds.times.endtime;
-    ddebug("get credentials of %s from KDC ok, expires at %s",
-           _principal_name.c_str(),
-           utils::time_s_to_date_time(_cred_expire_timestamp).c_str());
+    ddebug_f("get credentials of {} from KDC ok, expires at {}",
+             _principal_name,
+             utils::time_s_to_date_time(_cred_expire_timestamp));
     return err;
 }
 
@@ -274,9 +272,7 @@ error_s kinit_context::kinit(const std::string &keytab_file, const std::string &
 
     schedule_renew_credentials();
 
-    ddebug("logged in from keytab as %s, local username %s",
-           _principal_name.c_str(),
-           _username.c_str());
+    ddebug_f("logged in from keytab as {}, local username {}", _principal_name, _username);
 
     _service_fqdn =
         dsn_config_get_value_string("security", "service_fqdn", "pegasus", "service fqdn");
@@ -327,7 +323,7 @@ error_s init_kerberos(bool is_server)
 
     g_kinit_ctx.reset(new kinit_context);
     error_s err = g_kinit_ctx->kinit(keytab_file, principal);
-    ddebug("after call kinit err = %s", err.description().c_str());
+    ddebug_f("after call kinit err = {}", err.description());
 
     g_kerberos_lock.reset(new utils::rw_lock_nr);
     // TODO: start a task to update the credential(TGT)

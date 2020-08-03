@@ -5,6 +5,7 @@
 #include <runtime/security/sasl_utils.h>
 #include <dsn/c/api_utilities.h>
 #include <dsn/utility/config_api.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace security {
@@ -45,7 +46,7 @@ int sasl_simple_logger(void *context, int level, const char *msg)
         return SASL_OK;
     }
 
-    ddebug("sasl log info: log level = %s, message = %s", logger_level_to_string(level), msg);
+    ddebug_f("sasl log info: log level = {}, message = {}", logger_level_to_string(level), msg);
     return SASL_OK;
 }
 
@@ -76,10 +77,9 @@ int simple(void *context, int id, const char **result, unsigned *len)
         derror("could handle SASL callback type SASL_CB_LANGUAGE");
         return SASL_BADPARAM;
     default:
-        dassert(false, "unexpected SASL callback type: %d", id);
+        dassert_f(false, "unexpected SASL callback type: {}", id);
         return SASL_BADPARAM;
     }
-    return SASL_OK;
 }
 
 sasl_callback_t client_callbacks[] = {{SASL_CB_USER, (sasl_callback_ft)&simple, nullptr},
