@@ -65,8 +65,9 @@ private:
 
     std::shared_ptr<boost::asio::deadline_timer> _timer;
 
-    // get or renew credentials from KDC and store it to _ccache
+    // get _principal_name and _user_name from _principal
     error_s get_formatted_identities();
+    // get or renew credentials from KDC and store it to _ccache
     error_s get_credentials();
     void schedule_renew_credentials();
 };
@@ -124,11 +125,13 @@ static error_s krb5_call_to_errors(krb5_context ctx, krb5_error_code code, const
 
 static error_s parse_username_from_principal(krb5_const_principal principal, std::string &username)
 {
-    // Attention: here we just assume the length of username must be little then 1024
-    char buf[1024];
+    // Attention: here we just assume the length of username must be little than 1024
+    uint16_t buf_len = 1024;
+    char buf[buf_len];
     krb5_error_code err = 0;
     err = krb5_aname_to_localname(g_krb5_context, principal, sizeof(buf), buf);
 
+    // KRB5_LNAME_NOTRANS means no translation available for requested principal
     if (err == KRB5_LNAME_NOTRANS) {
         if (principal->length > 0) {
             int cnt = 0;
@@ -147,7 +150,7 @@ static error_s parse_username_from_principal(krb5_const_principal principal, std
     }
 
     if (err == KRB5_CONFIG_NOTENUFSPACE) {
-        return error_s::make(ERR_RUNTIME_ERROR, "username is larger than 1024");
+        return error_s::make(ERR_RUNTIME_ERROR, fmt::format("username is larger than {}", buf_len));
     }
 
     KRB5_RETURN_NOT_OK(err, "krb5 parse aname to localname failed");
@@ -315,7 +318,8 @@ error_s init_kerberos(bool is_server)
         return error_s::make(ERR_INVALID_PARAMETERS, "empty principal");
     }
 
-    // setup kerberos envs(for more details: https://web.mit.edu/kerberos/krb5-1.12/doc/admin/env_variables.html)
+    // setup kerberos envs(for more details:
+    // https://web.mit.edu/kerberos/krb5-1.12/doc/admin/env_variables.html)
     setenv("KRB5CCNAME", is_server ? "MEMORY:pegasus-server" : "MEMORY:pegasus-client", 1);
     setenv("KRB5_CONFIG", krb5_config.c_str(), 1);
     setenv("KRB5_KTNAME", keytab_file.c_str(), 1);
