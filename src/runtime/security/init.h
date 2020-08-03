@@ -10,9 +10,8 @@
 namespace dsn {
 namespace security {
 error_s init_kerberos(bool is_server);
-// Attention:
-//      user should not release the lock, lock is already managed by smart ptr
-utils::rw_lock_nr *krb5_cred_lock();
+
+utils::rw_lock_nr &krb5_cred_lock();
 
 // parse username from principal, for example:
 //  -- if principal is username/fqdn@Realm, then return username/fqdn

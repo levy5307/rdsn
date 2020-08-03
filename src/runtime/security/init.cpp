@@ -48,7 +48,8 @@ public:
 private:
     // krb5 structure
     krb5_principal _principal;
-    krb5_keytab _keytab; // absolute path
+    // keytab file with absolute path
+    krb5_keytab _keytab;
     krb5_ccache _ccache;
     krb5_get_init_creds_opt *_opt;
 
@@ -314,7 +315,7 @@ error_s init_kerberos(bool is_server)
         return error_s::make(ERR_INVALID_PARAMETERS, "empty principal");
     }
 
-    // setup kerberos envs
+    // setup kerberos envs(for more details: https://web.mit.edu/kerberos/krb5-1.12/doc/admin/env_variables.html)
     setenv("KRB5CCNAME", is_server ? "MEMORY:pegasus-server" : "MEMORY:pegasus-client", 1);
     setenv("KRB5_CONFIG", krb5_config.c_str(), 1);
     setenv("KRB5_KTNAME", keytab_file.c_str(), 1);
@@ -329,7 +330,7 @@ error_s init_kerberos(bool is_server)
     return err;
 }
 
-utils::rw_lock_nr *krb5_cred_lock() { return g_kerberos_lock.get(); }
+utils::rw_lock_nr &krb5_cred_lock() { return *g_kerberos_lock.get(); }
 
 std::string get_username() { return g_kinit_ctx->username(); }
 

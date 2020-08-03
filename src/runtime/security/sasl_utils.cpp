@@ -131,9 +131,9 @@ const char *sasl_err_desc(int status, sasl_conn_t *conn)
 
 error_s call_sasl_func(sasl_conn_t *conn, const std::function<int()> &call)
 {
-    krb5_cred_lock()->lock_read();
+    krb5_cred_lock().lock_read();
     int err = call();
-    krb5_cred_lock()->unlock_read();
+    krb5_cred_lock().unlock_read();
     error_s ret;
     switch (err) {
     case SASL_OK:
