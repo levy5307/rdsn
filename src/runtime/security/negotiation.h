@@ -28,8 +28,6 @@ class rpc_session;
 
 namespace security {
 
-extern const std::set<std::string> supported_mechanisms;
-
 class negotiation
 {
 public:

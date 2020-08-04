@@ -24,8 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include "runtime/security/client_negotiation.h"
-
 #include "asio_rpc_session.h"
 
 namespace dsn {
