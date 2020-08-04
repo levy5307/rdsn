@@ -250,20 +250,26 @@ error_s kinit_context::kinit(const std::string &keytab_file, const std::string &
 
     init_krb5_ctx();
 
+    // convert a string principal name to a krb5_principal structure.
     KRB5_RETURN_NOT_OK(krb5_parse_name(g_krb5_context, principal.c_str(), &_principal),
                        "couldn't parse principal");
 
+    // get _principal_name and _user_name from _principal
     RETURN_NOT_OK(get_formatted_identities());
 
+    // get a handle for a key table.
     KRB5_RETURN_NOT_OK(krb5_kt_resolve(g_krb5_context, keytab_file.c_str(), &_keytab),
                        "couldn't resolve keytab file");
 
+    // acquire credential cache handle
     KRB5_RETURN_NOT_OK(krb5_cc_default(g_krb5_context, &_ccache),
                        "couldn't acquire credential cache handle");
 
+    // initialize credential cache.
     KRB5_RETURN_NOT_OK(krb5_cc_initialize(g_krb5_context, _ccache, _principal),
                        "initialize credential cache failed");
 
+    // allocate a new initial credential options structure
     KRB5_RETURN_NOT_OK(krb5_get_init_creds_opt_alloc(g_krb5_context, &_opt),
                        "alloc get_init_creds_opt structure failed");
 
