@@ -2,7 +2,8 @@
 // This source code is licensed under the Apache License Version 2.0, which
 // can be found in the LICENSE file in the root directory of this source tree.
 
-#include <runtime/security/sasl_utils.h>
+#include "runtime/security/sasl_utils.h"
+
 #include <dsn/c/api_utilities.h>
 #include <dsn/utility/config_api.h>
 #include <dsn/dist/fmt_logging.h>

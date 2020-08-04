@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <dsn/utility/errors.h>
-#include <runtime/security/init.h>
+#include "runtime/security/kerberos_utils.h"
 
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>
-
 #include <functional>
+
+#include <dsn/utility/errors.h>
 
 namespace dsn {
 namespace security {
