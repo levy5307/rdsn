@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "runtime/security/kerberos_utils.h"
+#include "kerberos_utils.h"
 
 #include <sasl/sasl.h>
 #include <sasl/saslplug.h>

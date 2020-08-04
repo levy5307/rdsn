@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "runtime/security/security_types.h"
+#include "security_types.h"
 #include <sasl/sasl.h>
 
 namespace dsn {

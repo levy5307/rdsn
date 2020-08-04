@@ -238,9 +238,7 @@ public:
     bool on_recv_message(message_ex *msg, int delay_ms);
 
     // for negotiation
-    void handle_negotiation_message(message_ex *msg);
-    void negotiation();
-    void auth_negotiation();
+    void start_negotiation();
     void complete_negotiation(bool succ);
 
 public:
@@ -272,7 +270,7 @@ protected:
     enum session_state
     {
         SS_CONNECTING,
-        SS_NEGOTIATION,
+        SS_NEGOTIATING,
         SS_CONNECTED,
         SS_DISCONNECTED
     };
@@ -325,13 +323,16 @@ protected:
     message_parser_ptr _parser;
 
 private:
+    void handle_negotiation_message(message_ex *msg);
+    void auth_negotiation();
+
+private:
     const bool _is_client;
     rpc_client_matcher *_matcher;
 
     std::atomic_int _delay_server_receive_ms;
 
-    // for negotiation
-    std::shared_ptr<security::negotiation> _negotiation;
+    std::unique_ptr<security::negotiation> _negotiation;
 };
 
 // --------- inline implementation --------------

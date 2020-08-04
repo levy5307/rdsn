@@ -201,13 +201,9 @@ void asio_rpc_session::connect()
                 dinfo("client session %s connected", _remote_addr.to_string());
                 _local_addr.assign_ipv4(_socket->local_endpoint().address().to_v4().to_ulong(),
                                         _socket->local_endpoint().port());
-
                 set_options();
-                set_negotiation();
-                // now only auth negotiation is supported, version negotiation will be supported in the future
-                negotiation();
-
-                // please make sure we should start negotiation first before recv messages
+                // start auth negotiation when client is connecting to server
+                start_negotiation();
                 start_read_next();
             } else {
                 derror("client session connect to %s failed, error = %s",

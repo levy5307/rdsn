@@ -34,6 +34,7 @@
  *     2016-04-25, Weijie Sun(sunweijie at xiaomi.com), refactor
  */
 
+#include <dsn/dist/fmt_logging.h>
 #include <dsn/utility/factory_store.h>
 #include <dsn/utility/string_conv.h>
 #include <dsn/tool-api/task.h>
@@ -2844,5 +2845,5 @@ void server_state::clear_app_envs(const app_env_rpc &env_rpc)
                    new_envs.c_str());
         });
 }
-}
-}
+} // namespace replication
+} // namespace dsn

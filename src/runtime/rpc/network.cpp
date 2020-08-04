@@ -24,19 +24,25 @@
  * THE SOFTWARE.
  */
 
-#include <dsn/utility/factory_store.h>
-#include <dsn/tool-api/network.h>
-#include "runtime/security/client_negotiation.h"
-#include "runtime/security/server_negotiation.h"
-
 #include "message_parser_manager.h"
 #include "rpc_engine.h"
+#include "runtime/security/negotiation.h"
+#include "runtime/security/negotiation_utils.h"
+
+#include <dsn/utility/factory_store.h>
+#include <dsn/tool-api/network.h>
+#include <dsn/tool-api/network.h>
+#include <dsn/utility/factory_store.h>
 
 namespace dsn {
 /*static*/ join_point<void, rpc_session *>
     rpc_session::on_rpc_session_connected("rpc.session.connected");
 /*static*/ join_point<void, rpc_session *>
     rpc_session::on_rpc_session_disconnected("rpc.session.disconnected");
+
+namespace security {
+extern bool FLAGS_enable_auth;
+} // namespace security
 
 rpc_session::~rpc_session()
 {
@@ -68,8 +74,8 @@ void rpc_session::set_connected()
 
     {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        dassert(_connect_state == SS_NEGOTIATION ||
-                    (_connect_state == SS_CONNECTING && !net().need_auth_connection()),
+        dassert((_connect_state == SS_NEGOTIATING && security::FLAGS_enable_auth) ||
+                    (_connect_state == SS_CONNECTING && !security::FLAGS_enable_auth),
                 "wrong session state");
         _connect_state = SS_CONNECTED;
         for (const auto &msg : _pending_connected) {
@@ -92,7 +98,7 @@ void rpc_session::set_negotiation()
     {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
         dassert(_connect_state == SS_CONNECTING, "session must be connecting");
-        _connect_state = SS_NEGOTIATION;
+        _connect_state = SS_NEGOTIATING;
     }
 }
 
@@ -303,7 +309,7 @@ void rpc_session::send_message(message_ex *msg)
         //  case 2: session is sending negotiation message
         if (SS_CONNECTED == _connect_state || security::is_negotiation_message(msg->rpc_code())) {
             if (security::is_negotiation_message(msg->rpc_code()) && is_client()) {
-                dassert(SS_NEGOTIATION == _connect_state,
+                dassert(SS_NEGOTIATING == _connect_state,
                         "invalid rpc_session state(%d)",
                         _connect_state);
             }
@@ -524,13 +530,18 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     return true;
 }
 
-void rpc_session::negotiation()
+void rpc_session::start_negotiation()
 {
-    // TODO: version_negotiation + auth_negotiation
-    if (_net.need_auth_connection())
+    if (security::FLAGS_enable_auth) {
+        // set the negotiation state if it's a client rpc_session
+        if (is_client()) {
+            set_negotiation();
+        }
+
         auth_negotiation();
-    else
+    } else {
         complete_negotiation(true);
+    }
 }
 
 void rpc_session::auth_negotiation()

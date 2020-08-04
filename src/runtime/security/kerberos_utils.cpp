@@ -2,7 +2,7 @@
 // This source code is licensed under the Apache License Version 2.0, which
 // can be found in the LICENSE file in the root directory of this source tree.
 
-#include "runtime/security/kerberos_utils.h"
+#include "kerberos_utils.h"
 #include "utils/shared_io_service.h"
 
 #include <mutex>
