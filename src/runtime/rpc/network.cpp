@@ -439,7 +439,7 @@ bool rpc_session::on_disconnected(bool is_write)
 
 void rpc_session::handle_negotiation_message(message_ex *msg)
 {
-    if (!_net.need_auth_connection()) {
+    if (!security::FLAGS_enable_auth) {
         dsn::message_ptr msg_ref(msg);
         if (msg->header->context.u.is_request)
             _net.engine()->reply(msg->create_response(), ERR_HANDLER_NOT_FOUND);
@@ -455,7 +455,7 @@ bool rpc_session::prepare_auth_for_normal_message(message_ex *msg)
     // TODO: version + auth
     bool reject_as_unauthenticated = false;
 
-    if (_net.need_auth_connection() && _net.mandatory_auth()) {
+    if (security::FLAGS_enable_auth && _net.mandatory_auth()) {
         dassert(_negotiation, "negotiation not created by authentiation is necessary");
         if (!_negotiation->negotiation_succeed())
             reject_as_unauthenticated = true;
@@ -874,11 +874,6 @@ void connection_oriented_network::on_client_session_disconnected(rpc_session_ptr
                s->remote_address().to_string(),
                scount);
     }
-}
-
-bool connection_oriented_network::need_auth_connection()
-{
-    return engine()->need_auth_connection();
 }
 
 bool connection_oriented_network::mandatory_auth() { return engine()->mandatory_auth(); }

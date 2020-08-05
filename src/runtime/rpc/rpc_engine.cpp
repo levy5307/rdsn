@@ -412,7 +412,6 @@ rpc_engine::rpc_engine(service_node *node) : _node(node), _rpc_matcher(this)
     _is_running = false;
     _is_serving = false;
 
-    _need_auth = dsn_config_get_value_bool("security", "open_auth", false, "whether open auth");
     _mandatory_auth = dsn_config_get_value_bool(
         "security", "mandatory_auth", false, "wheter to do authertication mandatorily");
 }

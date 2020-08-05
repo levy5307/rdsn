@@ -174,7 +174,6 @@ public:
     // to be defined
     virtual rpc_session_ptr create_client_session(::dsn::rpc_address server_addr) = 0;
 
-    bool need_auth_connection();
     bool mandatory_auth();
 
 protected:
@@ -222,7 +221,6 @@ public:
 
     // Whether this session is launched on client side.
     bool is_client() const { return _is_client; }
-    bool need_auth() const { return _net.need_auth_connection(); }
     bool mandantory_auth() const { return _net.mandatory_auth(); }
     dsn::rpc_address remote_address() const { return _remote_addr; }
     dsn::rpc_address local_address() const { return _local_addr; }
