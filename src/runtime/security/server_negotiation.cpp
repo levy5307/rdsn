@@ -57,11 +57,11 @@ void server_negotiation::reply(const message_ptr &req, const negotiation_message
     _session->send_message(resp);
 }
 
-void server_negotiation::fail_negotiation(const message_ptr &req, dsn::string_view reason)
+void server_negotiation::fail_negotiation(const message_ptr &req, const std::string &reason)
 {
     negotiation_message response;
     _status = response.status = negotiation_status::type::SASL_AUTH_FAIL;
-    response.msg = dsn::blob::create_from_bytes(reason.data(), reason.length());
+    response.msg = reason;
     reply(req, response);
 
     _session->complete_negotiation(false);
@@ -85,7 +85,7 @@ void server_negotiation::on_list_mechanisms(const message_ptr &m)
         ddebug_f("{}: reply server mechs({})", _name, mech_list);
         negotiation_message response;
         _status = response.status = negotiation_status::type::SASL_LIST_MECHANISMS_RESP;
-        response.msg = dsn::blob::create_from_bytes(std::move(mech_list));
+        response.msg = std::move(mech_list);
         reply(m, response);
     } else {
         dwarn_f("{}: got message({}) while expect({})",
@@ -101,7 +101,7 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
     negotiation_message request;
     dsn::unmarshall(m, request);
     if (request.status == negotiation_status::type::SASL_SELECT_MECHANISMS) {
-        _selected_mechanism = request.msg.to_string();
+        _selected_mechanism = request.msg;
         ddebug_f("{}: client select mechanism({})", _name, _selected_mechanism);
 
         if (supported_mechanisms.find(_selected_mechanism) == supported_mechanisms.end()) {
@@ -153,7 +153,7 @@ error_s server_negotiation::do_sasl_server_init()
     return err_s;
 }
 
-error_s server_negotiation::do_sasl_server_start(const blob &input, blob &output)
+error_s server_negotiation::do_sasl_server_start(const std::string &input, std::string &output)
 {
     const char *msg = nullptr;
     unsigned msg_len = 0;
@@ -166,11 +166,11 @@ error_s server_negotiation::do_sasl_server_start(const blob &input, blob &output
                                  &msg_len);
     });
 
-    output = blob::create_from_bytes(msg, msg_len);
+    output.assign(msg, msg_len);
     return err_s;
 }
 
-error_s server_negotiation::do_sasl_step(const blob &input, blob &output)
+error_s server_negotiation::do_sasl_step(const std::string &input, std::string &output)
 {
     const char *msg = nullptr;
     unsigned msg_len = 0;
@@ -178,7 +178,7 @@ error_s server_negotiation::do_sasl_step(const blob &input, blob &output)
         return sasl_server_step(_sasl_conn.get(), input.data(), input.length(), &msg, &msg_len);
     });
 
-    output = blob::create_from_bytes(msg, msg_len);
+    output.assign(msg, msg_len);
     return err_s;
 }
 
@@ -197,7 +197,7 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
         return;
     }
 
-    dsn::blob output;
+    std::string output;
     error_s err_s;
     if (client_message.status == negotiation_status::type::SASL_INITIATE) {
         err_s = do_sasl_server_start(client_message.msg, output);

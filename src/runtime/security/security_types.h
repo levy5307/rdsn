@@ -55,17 +55,17 @@ public:
     negotiation_message(negotiation_message &&);
     negotiation_message &operator=(const negotiation_message &);
     negotiation_message &operator=(negotiation_message &&);
-    negotiation_message() : status((negotiation_status::type)0) {}
+    negotiation_message() : status((negotiation_status::type)0), msg() {}
 
     virtual ~negotiation_message() throw();
     negotiation_status::type status;
-    ::dsn::blob msg;
+    std::string msg;
 
     _negotiation_message__isset __isset;
 
     void __set_status(const negotiation_status::type val);
 
-    void __set_msg(const ::dsn::blob &val);
+    void __set_msg(const std::string &val);
 
     bool operator==(const negotiation_message &rhs) const
     {

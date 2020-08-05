@@ -42,7 +42,7 @@ negotiation_message::~negotiation_message() throw() {}
 
 void negotiation_message::__set_status(const negotiation_status::type val) { this->status = val; }
 
-void negotiation_message::__set_msg(const ::dsn::blob &val) { this->msg = val; }
+void negotiation_message::__set_msg(const std::string &val) { this->msg = val; }
 
 uint32_t negotiation_message::read(::apache::thrift::protocol::TProtocol *iprot)
 {
@@ -74,8 +74,8 @@ uint32_t negotiation_message::read(::apache::thrift::protocol::TProtocol *iprot)
             }
             break;
         case 2:
-            if (ftype == ::apache::thrift::protocol::T_STRUCT) {
-                xfer += this->msg.read(iprot);
+            if (ftype == ::apache::thrift::protocol::T_STRING) {
+                xfer += iprot->readString(this->msg);
                 this->__isset.msg = true;
             } else {
                 xfer += iprot->skip(ftype);
@@ -103,8 +103,8 @@ uint32_t negotiation_message::write(::apache::thrift::protocol::TProtocol *oprot
     xfer += oprot->writeI32((int32_t)this->status);
     xfer += oprot->writeFieldEnd();
 
-    xfer += oprot->writeFieldBegin("msg", ::apache::thrift::protocol::T_STRUCT, 2);
-    xfer += this->msg.write(oprot);
+    xfer += oprot->writeFieldBegin("msg", ::apache::thrift::protocol::T_STRING, 2);
+    xfer += oprot->writeString(this->msg);
     xfer += oprot->writeFieldEnd();
 
     xfer += oprot->writeFieldStop();

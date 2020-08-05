@@ -36,14 +36,14 @@ public:
 private:
     void list_mechanisms();
     void recv_mechanisms(const message_ptr &mechs_msg);
-    void select_mechanism(dsn::string_view mech);
+    void select_mechanism(const std::string &mechanism);
     void mechanism_selected(const message_ptr &mechs_msg);
     void initiate_negotiation();
     void handle_challenge(const message_ptr &challenge_msg);
 
     error_s do_sasl_client_init();
     error_s send_sasl_initiate_msg();
-    error_s do_sasl_step(const blob &input, blob &output);
+    error_s do_sasl_step(const std::string &input, std::string &output);
 
     void send(const negotiation_message &n);
     void fail_negotiation();

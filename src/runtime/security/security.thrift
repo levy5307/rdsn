@@ -42,5 +42,5 @@ enum negotiation_status {
 
 struct negotiation_message {
     1: negotiation_status status;
-    2: dsn.blob msg;
+    2: string msg;
 }

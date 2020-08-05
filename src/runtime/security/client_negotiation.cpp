@@ -79,7 +79,7 @@ void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
 
     std::string matched_mechanism = "";
     std::vector<std::string> server_supported_mechanisms;
-    std::string resp_string = resp.msg.to_string();
+    std::string resp_string = resp.msg;
     dsn::utils::split_args(resp_string.c_str(), server_supported_mechanisms, ',');
 
     for (const std::string &server_supported_mechanism : server_supported_mechanisms) {
@@ -101,13 +101,13 @@ void client_negotiation::recv_mechanisms(const message_ptr &mechs_msg)
     select_mechanism(matched_mechanism);
 }
 
-void client_negotiation::select_mechanism(dsn::string_view mech)
+void client_negotiation::select_mechanism(const std::string &mechanism)
 {
-    _selected_mechanism.assign(mech.data(), mech.length());
+    _selected_mechanism = mechanism;
 
     negotiation_message req;
     _status = req.status = negotiation_status::type::SASL_SELECT_MECHANISMS;
-    req.msg = dsn::blob::create_from_bytes(mech.data(), mech.length());
+    req.msg = _selected_mechanism;
 
     send(req);
 }
@@ -123,7 +123,7 @@ void client_negotiation::mechanism_selected(const message_ptr &mechs_msg)
                 _name,
                 _selected_mechanism,
                 enum_to_string(resp.status),
-                resp.msg.to_string());
+                resp.msg);
         fail_negotiation();
     }
 }
@@ -165,13 +165,13 @@ void client_negotiation::handle_challenge(const message_ptr &challenge_msg)
     dsn::unmarshall(challenge_msg, challenge);
 
     if (challenge.status == negotiation_status::type::SASL_AUTH_FAIL) {
-        dwarn_f("{}: auth failed, reason({})", _name, challenge.msg.to_string());
+        dwarn_f("{}: auth failed, reason({})", _name, challenge.msg);
         fail_negotiation();
         return;
     }
 
     if (challenge.status == negotiation_status::type::SASL_CHALLENGE) {
-        dsn::blob response_msg;
+        std::string response_msg;
         error_s err_s = do_sasl_step(challenge.msg, response_msg);
         if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
             derror_f("{}: negotiation failed locally, reason = {}", _name, err_s.description());
@@ -236,14 +236,14 @@ error_s client_negotiation::send_sasl_initiate_msg()
     if (code == ERR_OK || code == ERR_INCOMPLETE) {
         negotiation_message req;
         _status = req.status = negotiation_status::type::SASL_INITIATE;
-        req.msg = dsn::blob::create_from_bytes(msg, msg_len);
+        req.msg.assign(msg, msg_len);
         send(req);
     }
 
     return err_s;
 }
 
-error_s client_negotiation::do_sasl_step(const dsn::blob &input, blob &output)
+error_s client_negotiation::do_sasl_step(const std::string &input, std::string &output)
 {
     const char *msg = nullptr;
     unsigned msg_len = 0;
@@ -252,7 +252,7 @@ error_s client_negotiation::do_sasl_step(const dsn::blob &input, blob &output)
             _sasl_conn.get(), input.data(), input.length(), nullptr, &msg, &msg_len);
     });
 
-    output = dsn::blob::create_from_bytes(msg, msg_len);
+    output.assign(msg, msg_len);
     return err_s;
 }
 

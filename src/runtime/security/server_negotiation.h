@@ -38,10 +38,10 @@ private:
     void on_select_mechanism(const message_ptr &m);
 
     error_s do_sasl_server_init();
-    error_s do_sasl_server_start(const blob &input, blob &output);
-    error_s do_sasl_step(const blob &input, blob &output);
+    error_s do_sasl_server_start(const std::string &input, std::string &output);
+    error_s do_sasl_step(const std::string &input, std::string &output);
 
-    void fail_negotiation(const message_ptr &req, dsn::string_view reason);
+    void fail_negotiation(const message_ptr &req, const std::string &reason);
     void succ_negotiation(const message_ptr &req);
     void reply(const message_ptr &req, const negotiation_message &response_data);
 
