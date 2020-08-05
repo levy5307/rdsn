@@ -123,7 +123,6 @@ public:
     int32_t max_concurrent_bulk_load_downloading_count;
 
     std::string super_user;
-    bool open_auth;
     bool mandatory_auth;
 
 public:

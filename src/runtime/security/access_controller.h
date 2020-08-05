@@ -16,6 +16,8 @@
 
 namespace dsn {
 namespace security {
+extern bool FLAGS_enable_auth;
+
 // access_controller only support RW for normal users, so
 // meta side: only pre_check
 // replica side: only bit_check
@@ -84,11 +86,10 @@ public:
     static const std::string ACL_KEY;
     access_controller();
 
-    void
-    load_config(const std::string &super_user, const bool open_auth, const bool mandatory_auth);
+    void load_config(const std::string &super_user, const bool mandatory_auth);
     bool is_superuser(const std::string &user_name)
     {
-        return !_open_auth || !_mandatory_auth || _super_user == user_name;
+        return !FLAGS_enable_auth || !_mandatory_auth || _super_user == user_name;
     }
 
     // for meta
@@ -125,7 +126,6 @@ private:
     }
 
     std::string _super_user;
-    bool _open_auth;
     bool _mandatory_auth;
 
     std::unordered_map<std::string, std::bitset<10>> _acl_masks;

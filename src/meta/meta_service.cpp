@@ -49,6 +49,10 @@
 #include "meta_bulk_load_service.h"
 
 namespace dsn {
+namespace security {
+extern bool FLAGS_enable_auth;
+} // namespace security
+
 namespace replication {
 
 meta_service::meta_service()
@@ -59,8 +63,7 @@ meta_service::meta_service()
     _node_live_percentage_threshold_for_update =
         _meta_opts.node_live_percentage_threshold_for_update;
     _state.reset(new server_state());
-    _state->load_security_config(
-        _meta_opts.super_user, _meta_opts.open_auth, _meta_opts.mandatory_auth);
+    _state->load_security_config(_meta_opts.super_user, _meta_opts.mandatory_auth);
     _function_level.store(_meta_opts.meta_function_level_on_start);
     if (_meta_opts.recover_from_replica_server) {
         ddebug("enter recovery mode for [meta_server].recover_from_replica_server = true");
@@ -341,7 +344,7 @@ error_code meta_service::start()
     // start remote command service before acquiring leader lock,
     // so that the command line call can be handled
     std::string super_user = "";
-    if (_meta_opts.open_auth && _meta_opts.mandatory_auth)
+    if (security::FLAGS_enable_auth && _meta_opts.mandatory_auth)
         super_user = _meta_opts.super_user;
     dist::cmd::register_remote_command_rpc(super_user);
 

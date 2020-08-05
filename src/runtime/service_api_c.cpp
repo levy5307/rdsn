@@ -54,6 +54,12 @@
 #include "runtime/task/task_engine.h"
 #include "utils/coredump.h"
 
+namespace dsn {
+namespace security {
+extern bool FLAGS_enable_auth;
+} // namespace security
+} // namespace dsn
+
 //
 // global state
 //
@@ -464,8 +470,7 @@ bool run(const char *config_file,
 
     dsn_all.engine_ready = true;
 
-    // FIX: open_auth will read again in rpc_engine's construct function
-    if (dsn_config_get_value_bool("security", "open_auth", false, "whether open auth")) {
+    if (dsn::security::FLAGS_enable_auth) {
         // before start node, we must initialize the kerberos and sasl, because the rpc engine will
         // be started when starting node
         dsn::error_s err_s = dsn::security::init_kerberos(is_server);

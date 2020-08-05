@@ -517,7 +517,6 @@ void replication_options::initialize()
                                              "concurrent uploading file count");
 
     super_user = dsn_config_get_value_string("security", "super_user", "", "super user");
-    open_auth = dsn_config_get_value_bool("security", "open_auth", false, "");
     mandatory_auth = dsn_config_get_value_bool("security", "mandatory_auth", false, "");
 
     cold_backup_checkpoint_reserve_minutes =

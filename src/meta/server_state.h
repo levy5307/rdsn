@@ -194,10 +194,9 @@ public:
         }
     }
     void load_security_config(const std::string &super_user,
-                              const bool open_auth,
                               const bool mandatory_auth)
     {
-        _access_controller.load_config(super_user, open_auth, mandatory_auth);
+        _access_controller.load_config(super_user, mandatory_auth);
     }
 
 private:

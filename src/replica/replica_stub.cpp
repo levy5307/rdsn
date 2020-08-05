@@ -57,6 +57,10 @@
 #include <dsn/dist/remote_command.h>
 
 namespace dsn {
+namespace security {
+extern bool FLAGS_enable_auth;
+} // namespace security
+
 namespace replication {
 
 bool replica_stub::s_not_exit_on_log_failure = false;
@@ -706,7 +710,7 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     _nfs->start();
 
     std::string super_user = "";
-    if (_options.open_auth && _options.mandatory_auth)
+    if (security::FLAGS_enable_auth && options.mandatory_auth)
         super_user = _options.super_user;
     dist::cmd::register_remote_command_rpc(super_user);
 
@@ -730,7 +734,7 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     }
 
     _access_controller.load_config(
-        _options.super_user, _options.open_auth, _options.mandatory_auth);
+        _options.super_user, _options.mandatory_auth);
 }
 
 void replica_stub::initialize_start()

@@ -90,22 +90,19 @@ access_controller::access_controller()
 }
 
 void access_controller::load_config(const std::string &super_user,
-                                    const bool open_auth,
                                     const bool mandatory_auth)
 {
     _super_user = super_user;
-    _open_auth = open_auth;
     _mandatory_auth = mandatory_auth;
-    ddebug_f("load superuser({}), open_auth({}), mandatory_auth({})",
+    ddebug_f("load superuser({}), mandatory_auth({})",
              super_user,
-             open_auth,
              mandatory_auth);
 }
 
 // for meta
 bool access_controller::pre_check(const std::string &rpc_code, const std::string &user_name)
 {
-    if (!_open_auth || !_mandatory_auth || user_name == _super_user ||
+    if (!FLAGS_enable_auth || !_mandatory_auth || user_name == _super_user ||
         _all_pass.find(rpc_code) != _all_pass.end())
         return true;
 
@@ -151,7 +148,7 @@ bool access_controller::app_level_check(const std::string &rpc_code,
 // for replica
 bool access_controller::bit_check(const int app_id, const std::string &user_name, const acl_bit bit)
 {
-    if (!_open_auth || !_mandatory_auth || user_name == _super_user)
+    if (!FLAGS_enable_auth || !_mandatory_auth || user_name == _super_user)
         return true;
 
     bool ret = false;
