@@ -710,7 +710,7 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
     _nfs->start();
 
     std::string super_user = "";
-    if (security::FLAGS_enable_auth && options.mandatory_auth)
+    if (security::FLAGS_enable_auth && _options.mandatory_auth)
         super_user = _options.super_user;
     dist::cmd::register_remote_command_rpc(super_user);
 
