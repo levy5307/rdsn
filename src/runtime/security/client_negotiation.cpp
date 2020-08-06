@@ -229,7 +229,7 @@ error_s client_negotiation::send_sasl_initiate_msg()
 
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
         return sasl_client_start(
-            _sasl_conn.get(), _selected_mechanism.data(), nullptr, &msg, &msg_len, &client_mech);
+            _sasl_conn.get(), _selected_mechanism.c_str(), nullptr, &msg, &msg_len, &client_mech);
     });
 
     error_code code = err_s.code();
@@ -249,7 +249,7 @@ error_s client_negotiation::do_sasl_step(const std::string &input, std::string &
     unsigned msg_len = 0;
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
         return sasl_client_step(
-            _sasl_conn.get(), input.data(), input.length(), nullptr, &msg, &msg_len);
+            _sasl_conn.get(), input.c_str(), input.length(), nullptr, &msg, &msg_len);
     });
 
     output.assign(msg, msg_len);

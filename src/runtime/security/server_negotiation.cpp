@@ -159,8 +159,8 @@ error_s server_negotiation::do_sasl_server_start(const std::string &input, std::
     unsigned msg_len = 0;
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
         return sasl_server_start(_sasl_conn.get(),
-                                 _selected_mechanism.data(),
-                                 input.data(),
+                                 _selected_mechanism.c_str(),
+                                 input.c_str(),
                                  input.length(),
                                  &msg,
                                  &msg_len);
@@ -175,7 +175,7 @@ error_s server_negotiation::do_sasl_step(const std::string &input, std::string &
     const char *msg = nullptr;
     unsigned msg_len = 0;
     error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        return sasl_server_step(_sasl_conn.get(), input.data(), input.length(), &msg, &msg_len);
+        return sasl_server_step(_sasl_conn.get(), input.c_str(), input.length(), &msg, &msg_len);
     });
 
     output.assign(msg, msg_len);
