@@ -446,7 +446,7 @@ void rpc_session::handle_negotiation_message(message_ex *msg)
         return;
     }
 
-    dassert(_negotiation, "negotiation not created by authentiation is necessary");
+    dassert(nullptr != _negotiation, "negotiation not created by authentiation is necessary");
     _negotiation->handle_message(msg);
 }
 
