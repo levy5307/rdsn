@@ -30,21 +30,23 @@ void server_negotiation::start_negotiate()
     ddebug_f("{}: start negotiation", _name);
 }
 
-void server_negotiation::handle_message(message_ptr msg)
+void server_negotiation::handle_message(message_ptr req)
 {
+    negotiation_request request;
+    dsn::unmarshall(req, request);
     if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
-        on_list_mechanisms(msg);
+        on_list_mechanisms(req, request);
         return;
     }
     if (_status == negotiation_status::type::SASL_LIST_MECHANISMS_RESP) {
-        on_select_mechanism(msg);
+        on_select_mechanism(req, request);
         return;
     }
 
-    handle_client_response_on_challenge(msg);
+    handle_client_response_on_challenge(req, request);
 }
 
-void server_negotiation::reply(const message_ptr &req, const negotiation_message &response_data)
+void server_negotiation::reply(const message_ptr &req, const negotiation_response &response)
 {
     message_ptr resp = req->create_response();
     strncpy(resp->header->server.error_name,
@@ -52,14 +54,14 @@ void server_negotiation::reply(const message_ptr &req, const negotiation_message
             sizeof(resp->header->server.error_name));
     resp->header->server.error_code.local_code = ERR_OK; // rpc is ok
     resp->header->server.error_code.local_hash = message_ex::s_local_hash;
-    dsn::marshall(resp, response_data);
+    dsn::marshall(resp, response);
 
     _session->send_message(resp);
 }
 
 void server_negotiation::fail_negotiation(const message_ptr &req, const std::string &reason)
 {
-    negotiation_message response;
+    negotiation_response response;
     _status = response.status = negotiation_status::type::SASL_AUTH_FAIL;
     response.msg = reason;
     reply(req, response);
@@ -69,37 +71,34 @@ void server_negotiation::fail_negotiation(const message_ptr &req, const std::str
 
 void server_negotiation::succ_negotiation(const message_ptr &req)
 {
-    negotiation_message response;
+    negotiation_response response;
     _status = response.status = negotiation_status::type::SASL_SUCC;
     reply(req, response);
 
     _session->complete_negotiation(true);
 }
 
-void server_negotiation::on_list_mechanisms(const message_ptr &m)
+void server_negotiation::on_list_mechanisms(const message_ptr &msg,
+        const negotiation_request &request)
 {
-    negotiation_message request;
-    dsn::unmarshall(m, request);
     if (request.status == negotiation_status::type::SASL_LIST_MECHANISMS) {
         std::string mech_list = join(supported_mechanisms.begin(), supported_mechanisms.end(), ",");
         ddebug_f("{}: reply server mechs({})", _name, mech_list);
-        negotiation_message response;
+        negotiation_response response;
         _status = response.status = negotiation_status::type::SASL_LIST_MECHANISMS_RESP;
         response.msg = std::move(mech_list);
-        reply(m, response);
+        reply(msg, response);
     } else {
         dwarn_f("{}: got message({}) while expect({})",
                 _name,
                 enum_to_string(request.status),
                 negotiation_status::type::SASL_LIST_MECHANISMS);
-        fail_negotiation(m, "invalid_client_message_status");
+        fail_negotiation(msg, "invalid_client_message_status");
     }
 }
 
-void server_negotiation::on_select_mechanism(const message_ptr &m)
+void server_negotiation::on_select_mechanism(const message_ptr &req, const negotiation_request &request)
 {
-    negotiation_message request;
-    dsn::unmarshall(m, request);
     if (request.status == negotiation_status::type::SASL_SELECT_MECHANISMS) {
         _selected_mechanism = request.msg;
         ddebug_f("{}: client select mechanism({})", _name, _selected_mechanism);
@@ -108,7 +107,7 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
             std::string error_msg =
                 fmt::format("the mechanism of {} is not supported", _selected_mechanism);
             derror_f("{}", error_msg);
-            fail_negotiation(m, error_msg);
+            fail_negotiation(req, error_msg);
         }
 
         error_s err_s = do_sasl_server_init();
@@ -117,19 +116,19 @@ void server_negotiation::on_select_mechanism(const message_ptr &m)
                     _name,
                     err_s.code().to_string(),
                     err_s.description());
-            fail_negotiation(m, err_s.description());
+            fail_negotiation(req, err_s.description());
             return;
         }
 
-        negotiation_message response;
+        negotiation_response response;
         _status = response.status = negotiation_status::type::SASL_SELECT_MECHANISMS_OK;
-        reply(m, response);
+        reply(req, response);
     } else {
         dwarn_f("{}: got message({}) while expect({})",
                 _name,
                 enum_to_string(request.status),
                 negotiation_status::type::SASL_SELECT_MECHANISMS);
-        fail_negotiation(m, "invalid_client_message_status");
+        fail_negotiation(req, "invalid_client_message_status");
     }
 }
 
@@ -182,27 +181,25 @@ error_s server_negotiation::do_sasl_step(const std::string &input, std::string &
     return err_s;
 }
 
-void server_negotiation::handle_client_response_on_challenge(const message_ptr &req)
+void server_negotiation::handle_client_response_on_challenge(const message_ptr &req,
+        const negotiation_request &request)
 {
     dinfo_f("{}: recv response negotiation message from client", _name);
-    negotiation_message client_message;
-    dsn::unmarshall(req, client_message);
-
-    if (client_message.status != negotiation_status::type::SASL_INITIATE &&
-        client_message.status != negotiation_status::type::SASL_RESPONSE) {
+    if (request.status != negotiation_status::type::SASL_INITIATE &&
+        request.status != negotiation_status::type::SASL_RESPONSE) {
         derror_f("{}: recv wrong negotiation msg, type = {}",
                  _name,
-                 enum_to_string(client_message.status));
+                 enum_to_string(request.status));
         fail_negotiation(req, "invalid_client_message_type");
         return;
     }
 
     std::string output;
     error_s err_s;
-    if (client_message.status == negotiation_status::type::SASL_INITIATE) {
-        err_s = do_sasl_server_start(client_message.msg, output);
+    if (request.status == negotiation_status::type::SASL_INITIATE) {
+        err_s = do_sasl_server_start(request.msg, output);
     } else {
-        err_s = do_sasl_step(client_message.msg, output);
+        err_s = do_sasl_step(request.msg, output);
     }
 
     if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
@@ -220,7 +217,7 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
         ddebug_f("{}: negotiation succ for user({})", _name, _user_name);
         succ_negotiation(req);
     } else {
-        negotiation_message challenge;
+        negotiation_response challenge;
         _status = challenge.status = negotiation_status::type::SASL_CHALLENGE;
         challenge.msg = output;
         reply(req, challenge);

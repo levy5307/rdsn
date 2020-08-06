@@ -33,9 +33,9 @@ public:
     void handle_message(message_ptr msg);
 
 private:
-    void handle_client_response_on_challenge(const message_ptr &req);
-    void on_list_mechanisms(const message_ptr &m);
-    void on_select_mechanism(const message_ptr &m);
+    void handle_client_response_on_challenge(const message_ptr &req, const negotiation_request &request);
+    void on_list_mechanisms(const message_ptr &m, const negotiation_request &request);
+    void on_select_mechanism(const message_ptr &m, const negotiation_request &request);
 
     error_s do_sasl_server_init();
     error_s do_sasl_server_start(const std::string &input, std::string &output);
@@ -43,7 +43,7 @@ private:
 
     void fail_negotiation(const message_ptr &req, const std::string &reason);
     void succ_negotiation(const message_ptr &req);
-    void reply(const message_ptr &req, const negotiation_message &response_data);
+    void reply(const message_ptr &req, const negotiation_response &response);
 
 private:
     // for logging
