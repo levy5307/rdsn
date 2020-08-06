@@ -43,7 +43,7 @@ static const char *plugins_search_path = nullptr;
 int sasl_simple_logger(void *context, int level, const char *msg)
 {
     // TODO: we can set a level to print sasl log info
-    if (level == SASL_LOG_NONE || msg == nullptr) {
+    if (level == SASL_LOG_NONE || nullptr == msg) {
         return SASL_OK;
     }
 
@@ -53,7 +53,7 @@ int sasl_simple_logger(void *context, int level, const char *msg)
 
 int getpath(void *context, char **path)
 {
-    if (!path) {
+    if (nullptr == path) {
         return SASL_BADPARAM;
     }
     *path = const_cast<char *>(plugins_search_path);
@@ -62,7 +62,7 @@ int getpath(void *context, char **path)
 
 int simple(void *context, int id, const char **result, unsigned *len)
 {
-    if (!result) {
+    if (nullptr == result) {
         return SASL_BADPARAM;
     }
     static std::string username = get_username();
@@ -125,7 +125,6 @@ const char *sasl_err_desc(int status, sasl_conn_t *conn)
     } else {
         return sasl_errstring(status, nullptr, nullptr);
     }
-    return "unknown error";
 }
 
 } // end anonymous namespace
