@@ -30,7 +30,7 @@ void server_negotiation::start_negotiate()
     ddebug_f("{}: start negotiation", _name);
 }
 
-void server_negotiation::handle_message(message_ptr req)
+void server_negotiation::handle_request(message_ptr req)
 {
     negotiation_request request;
     dsn::unmarshall(req, request);
@@ -79,7 +79,7 @@ void server_negotiation::succ_negotiation(const message_ptr &req)
 }
 
 void server_negotiation::on_list_mechanisms(const message_ptr &msg,
-        const negotiation_request &request)
+                                            const negotiation_request &request)
 {
     if (request.status == negotiation_status::type::SASL_LIST_MECHANISMS) {
         std::string mech_list = join(supported_mechanisms.begin(), supported_mechanisms.end(), ",");
@@ -97,7 +97,8 @@ void server_negotiation::on_list_mechanisms(const message_ptr &msg,
     }
 }
 
-void server_negotiation::on_select_mechanism(const message_ptr &req, const negotiation_request &request)
+void server_negotiation::on_select_mechanism(const message_ptr &req,
+                                             const negotiation_request &request)
 {
     if (request.status == negotiation_status::type::SASL_SELECT_MECHANISMS) {
         _selected_mechanism = request.msg;
@@ -182,14 +183,13 @@ error_s server_negotiation::do_sasl_step(const std::string &input, std::string &
 }
 
 void server_negotiation::handle_client_response_on_challenge(const message_ptr &req,
-        const negotiation_request &request)
+                                                             const negotiation_request &request)
 {
     dinfo_f("{}: recv response negotiation message from client", _name);
     if (request.status != negotiation_status::type::SASL_INITIATE &&
         request.status != negotiation_status::type::SASL_RESPONSE) {
-        derror_f("{}: recv wrong negotiation msg, type = {}",
-                 _name,
-                 enum_to_string(request.status));
+        derror_f(
+            "{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(request.status));
         fail_negotiation(req, "invalid_client_message_type");
         return;
     }

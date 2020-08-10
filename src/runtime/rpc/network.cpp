@@ -437,19 +437,6 @@ bool rpc_session::on_disconnected(bool is_write)
     return ret;
 }
 
-void rpc_session::handle_negotiation_message(message_ex *msg)
-{
-    if (!security::FLAGS_enable_auth) {
-        dsn::message_ptr msg_ref(msg);
-        if (msg->header->context.u.is_request)
-            _net.engine()->reply(msg->create_response(), ERR_HANDLER_NOT_FOUND);
-        return;
-    }
-
-    dassert(nullptr != _negotiation, "negotiation not created by authentiation is necessary");
-    _negotiation->handle_message(msg);
-}
-
 bool rpc_session::prepare_auth_for_normal_message(message_ex *msg)
 {
     // TODO: version + auth
@@ -486,12 +473,8 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     msg->to_address = _net.address();
     msg->io_session = this;
 
-    if (security::is_negotiation_message(msg->rpc_code())) {
-        handle_negotiation_message(msg);
-        return true;
-    }
-
-    if (!prepare_auth_for_normal_message(msg)) {
+    if (!security::is_negotiation_message(msg->rpc_code()) &&
+        !prepare_auth_for_normal_message(msg)) {
         return false;
     }
 
@@ -568,6 +551,8 @@ void rpc_session::complete_negotiation(bool succ)
         on_failure(true);
     }
 }
+
+security::negotiation *rpc_session::get_negotiation() const { return _negotiation.get(); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 network::network(rpc_engine *srv, network *inner_provider)

@@ -238,6 +238,7 @@ public:
     // for negotiation
     void start_negotiation();
     void complete_negotiation(bool succ);
+    security::negotiation *get_negotiation() const;
 
 public:
     ///

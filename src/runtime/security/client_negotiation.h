@@ -31,9 +31,9 @@ class client_negotiation : public negotiation
 public:
     client_negotiation(rpc_session *session);
     void start_negotiate();
-    void handle_message(message_ptr msg);
 
 private:
+    void handle_response(message_ptr resp);
     void list_mechanisms();
     void recv_mechanisms(const negotiation_response &resp);
     void select_mechanism(const std::string &resp);

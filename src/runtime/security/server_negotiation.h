@@ -30,10 +30,11 @@ class server_negotiation : public negotiation
 public:
     server_negotiation(rpc_session *session);
     void start_negotiate();
-    void handle_message(message_ptr msg);
+    void handle_request(message_ptr msg);
 
 private:
-    void handle_client_response_on_challenge(const message_ptr &req, const negotiation_request &request);
+    void handle_client_response_on_challenge(const message_ptr &req,
+                                             const negotiation_request &request);
     void on_list_mechanisms(const message_ptr &m, const negotiation_request &request);
     void on_select_mechanism(const message_ptr &m, const negotiation_request &request);
 

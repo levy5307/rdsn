@@ -20,6 +20,7 @@
 #include "negotiation_utils.h"
 
 #include <dsn/dist/fmt_logging.h>
+#include <dsn/tool-api/async_calls.h>
 
 namespace dsn {
 namespace security {
@@ -31,39 +32,39 @@ void client_negotiation::start_negotiate()
     list_mechanisms();
 }
 
-void client_negotiation::handle_message(message_ptr msg)
+void client_negotiation::list_mechanisms()
 {
-    if (msg->error() == ERR_HANDLER_NOT_FOUND && !_session->mandantory_auth()) {
+    negotiation_request req;
+    _status = req.status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    send(req);
+}
+
+void client_negotiation::handle_response(message_ptr resp)
+{
+    if (resp->error() == ERR_HANDLER_NOT_FOUND && !_session->mandantory_auth()) {
         dwarn_f("{}: treat negotiation succeed as server doesn't support it, user_name in later "
                 "messages aren't trustable",
                 _name);
         succ_negotiation();
         return;
     }
-    if (msg->error() != ERR_OK) {
-        derror_f("{}: negotiation failed, error = {}", _name, msg->error().to_string());
+    if (resp->error() != ERR_OK) {
+        derror_f("{}: negotiation failed, error = {}", _name, resp->error().to_string());
         fail_negotiation();
         return;
     }
 
-    negotiation_response resp;
-    dsn::unmarshall(msg, resp);
+    negotiation_response response;
+    dsn::unmarshall(resp, response);
     if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
-        recv_mechanisms(resp);
+        recv_mechanisms(response);
         return;
     }
     if (_status == negotiation_status::type::SASL_SELECT_MECHANISMS) {
-        mechanism_selected(resp);
+        mechanism_selected(response);
         return;
     }
-    handle_challenge(resp);
-}
-
-void client_negotiation::list_mechanisms()
-{
-    negotiation_request req;
-    _status = req.status = negotiation_status::type::SASL_LIST_MECHANISMS;
-    send(req);
+    handle_challenge(response);
 }
 
 void client_negotiation::recv_mechanisms(const negotiation_response &resp)
@@ -252,11 +253,16 @@ error_s client_negotiation::do_sasl_step(const std::string &input, std::string &
     return err_s;
 }
 
-void client_negotiation::send(const negotiation_request &n)
+void client_negotiation::send(const negotiation_request &request)
 {
     message_ptr msg = message_ex::create_request(RPC_NEGOTIATION);
-    dsn::marshall(msg.get(), n);
-    _session->send_message(msg.get());
+    dsn::marshall(msg.get(), request);
+
+    rpc_response_task_ptr t = rpc::create_rpc_response_task(
+        msg, nullptr, [this](error_code err, dsn::message_ex *request, dsn::message_ex *response) {
+            handle_response(response);
+        });
+    dsn_rpc_call(_session->remote_address(), t);
 }
 
 void client_negotiation::fail_negotiation()
