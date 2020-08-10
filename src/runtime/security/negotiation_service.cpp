@@ -35,17 +35,25 @@ void negotiation_service::on_negotiation_request(message_ex *req)
 {
     dassert(!req->io_session->is_client(), "only server session receive negotiation request");
 
+    // return SASL_NO_AUTH if auth is not enable
     if (!security::FLAGS_enable_auth) {
-        dsn::message_ptr msg_ref(req);
-        if (req->header->context.u.is_request) {
-            reply(req->create_response(), ERR_HANDLER_NOT_FOUND);
-        }
+        reply_no_auth(req);
         return;
     }
 
     server_negotiation *s_negotiation =
         dynamic_cast<server_negotiation *>(req->io_session->get_negotiation());
     s_negotiation->handle_request(req);
+}
+
+void negotiation_service::reply_no_auth(message_ex *req)
+{
+    auto resp = req->create_response();
+
+    negotiation_response response;
+    response.status = negotiation_status::type::SASL_NO_AUTH;
+    marshall(resp, response);
+    dsn_rpc_reply(resp);
 }
 
 } // namespace security

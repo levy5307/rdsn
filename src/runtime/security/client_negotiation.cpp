@@ -56,6 +56,16 @@ void client_negotiation::handle_response(message_ptr resp)
 
     negotiation_response response;
     dsn::unmarshall(resp, response);
+
+    // if server doesn't enable auth and the auth is not mandantory, make the negotiation success
+    if (negotiation_status::type::SASL_NO_AUTH == response.status && !_session->mandantory_auth()) {
+        dwarn_f("{}: treat negotiation succeed as server doesn't enable it, user_name in later "
+                "messages aren't trustable",
+                _name);
+        succ_negotiation();
+        return;
+    }
+
     if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
         recv_mechanisms(response);
         return;

@@ -23,6 +23,7 @@ int _knegotiation_statusValues[] = {negotiation_status::INVALID,
                                     negotiation_status::SASL_CHALLENGE,
                                     negotiation_status::SASL_RESPONSE,
                                     negotiation_status::SASL_SUCC,
+                                    negotiation_status::SASL_NO_AUTH,
                                     negotiation_status::SASL_AUTH_FAIL};
 const char *_knegotiation_statusNames[] = {"INVALID",
                                            "SASL_LIST_MECHANISMS",
@@ -33,9 +34,10 @@ const char *_knegotiation_statusNames[] = {"INVALID",
                                            "SASL_CHALLENGE",
                                            "SASL_RESPONSE",
                                            "SASL_SUCC",
+                                           "SASL_NO_AUTH",
                                            "SASL_AUTH_FAIL"};
 const std::map<int, const char *> _negotiation_status_VALUES_TO_NAMES(
-    ::apache::thrift::TEnumIterator(10, _knegotiation_statusValues, _knegotiation_statusNames),
+    ::apache::thrift::TEnumIterator(11, _knegotiation_statusValues, _knegotiation_statusNames),
     ::apache::thrift::TEnumIterator(-1, NULL, NULL));
 
 negotiation_request::~negotiation_request() throw() {}

@@ -36,6 +36,8 @@ inline const char *enum_to_string(negotiation_status::type s)
         return "negotiation_challenge";
     case negotiation_status::type::SASL_RESPONSE:
         return "negotiation_response";
+    case negotiation_status::type::SASL_NO_AUTH:
+        return "negotiation_no_auth";
     case negotiation_status::type::INVALID:
         return "negotiation_invalid";
     }

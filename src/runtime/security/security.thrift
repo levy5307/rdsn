@@ -37,6 +37,7 @@ enum negotiation_status {
     SASL_CHALLENGE,
     SASL_RESPONSE,
     SASL_SUCC,
+    SASL_NO_AUTH,
     SASL_AUTH_FAIL
 }
 

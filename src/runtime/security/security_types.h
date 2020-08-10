@@ -33,7 +33,8 @@ struct negotiation_status
         SASL_CHALLENGE = 6,
         SASL_RESPONSE = 7,
         SASL_SUCC = 8,
-        SASL_AUTH_FAIL = 9
+        SASL_NO_AUTH = 9,
+        SASL_AUTH_FAIL = 10
     };
 };
 

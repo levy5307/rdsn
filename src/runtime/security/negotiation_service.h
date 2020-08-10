@@ -30,6 +30,8 @@ public:
     void open_service();
     void on_negotiation_request(message_ex *proposal);
 
+private:
+    void reply_no_auth(message_ex *req);
     friend class serverlet<negotiation_service>;
 };
 
