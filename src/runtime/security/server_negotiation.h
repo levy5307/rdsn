@@ -20,31 +20,31 @@
 #include "negotiation.h"
 #include "negotiation_utils.h"
 #include <dsn/utility/errors.h>
+#include <dsn/cpp/rpc_holder.h>
 
 namespace dsn {
 namespace security {
 extern const std::set<std::string> supported_mechanisms;
+typedef rpc_holder<negotiation_request, negotiation_response> negotiation_rpc;
 
 class server_negotiation : public negotiation
 {
 public:
     server_negotiation(rpc_session *session);
     void start();
-    void handle_request(message_ptr msg);
+    void handle_request(negotiation_rpc rpc);
 
 private:
-    void handle_client_response_on_challenge(const message_ptr &req,
-                                             const negotiation_request &request);
-    void on_list_mechanisms(const message_ptr &m, const negotiation_request &request);
-    void on_select_mechanism(const message_ptr &m, const negotiation_request &request);
+    void handle_client_response_on_challenge(negotiation_rpc rpc);
+    void on_list_mechanisms(negotiation_rpc rpc);
+    void on_select_mechanism(negotiation_rpc rpc);
 
     error_s do_sasl_server_init();
     error_s do_sasl_server_start(const std::string &input, std::string &output);
     error_s do_sasl_step(const std::string &input, std::string &output);
 
-    void fail_negotiation(const message_ptr &req, const std::string &reason);
-    void succ_negotiation(const message_ptr &req);
-    void reply(const message_ptr &req, const negotiation_response &response);
+    void fail_negotiation(negotiation_rpc rpc, const std::string &reason);
+    void succ_negotiation(negotiation_rpc rpc);
 
 private:
     // for logging

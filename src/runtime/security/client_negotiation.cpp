@@ -53,9 +53,9 @@ void client_negotiation::handle_response(error_code err, const negotiation_respo
     // if server doesn't enable auth and the auth is not mandantory, make the negotiation success
     if (negotiation_status::type::SASL_AUTH_DISABLE == response.status &&
         !_session->mandantory_auth()) {
-        dwarn_f("{}: treat negotiation succeed as server doesn't enable it, user_name in later "
-                "messages aren't trustable",
-                _name);
+        ddebug_f("{}: treat negotiation succeed as server doesn't enable it, user_name in later "
+                 "messages aren't trustable",
+                 _name);
         succ_negotiation();
         return;
     }
