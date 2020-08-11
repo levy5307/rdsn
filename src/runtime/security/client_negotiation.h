@@ -33,7 +33,7 @@ public:
     void start();
 
 private:
-    void handle_response(message_ptr resp);
+    void handle_response(error_code err, const negotiation_response &&response);
     void list_mechanisms();
     void recv_mechanisms(const negotiation_response &resp);
     void select_mechanism(const std::string &resp);

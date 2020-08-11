@@ -43,13 +43,16 @@ void client_negotiation::list_mechanisms()
     send(request);
 }
 
-void client_negotiation::handle_response(message_ptr resp)
+void client_negotiation::handle_response(error_code err, const negotiation_response &&response)
 {
-    negotiation_response response;
-    dsn::unmarshall(resp, response);
+    if (err != ERR_OK) {
+        fail_negotiation();
+        return;
+    }
 
     // if server doesn't enable auth and the auth is not mandantory, make the negotiation success
-    if (negotiation_status::type::SASL_AUTH_DISABLE == response.status && !_session->mandantory_auth()) {
+    if (negotiation_status::type::SASL_AUTH_DISABLE == response.status &&
+        !_session->mandantory_auth()) {
         dwarn_f("{}: treat negotiation succeed as server doesn't enable it, user_name in later "
                 "messages aren't trustable",
                 _name);
@@ -260,8 +263,8 @@ void client_negotiation::send(const negotiation_request &request)
     dsn::marshall(msg.get(), request);
 
     rpc_response_task_ptr t = rpc::create_rpc_response_task(
-        msg, nullptr, [this](error_code err, dsn::message_ex *request, dsn::message_ex *response) {
-            handle_response(response);
+        msg, nullptr, [this](error_code err, negotiation_response response) {
+            handle_response(err, std::move(response));
         });
     dsn_rpc_call(_session->remote_address(), t);
 }
