@@ -191,7 +191,7 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
 {
     dinfo_f("{}: recv response negotiation message from client", _name);
     if (request.status != negotiation_status::type::SASL_INITIATE &&
-        request.status != negotiation_status::type::SASL_RESPONSE) {
+        request.status != negotiation_status::type::SASL_CHANLLENGE_RESP) {
         derror_f(
             "{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(request.status));
         fail_negotiation(req, "invalid_client_message_type");

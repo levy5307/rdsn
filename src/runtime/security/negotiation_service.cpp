@@ -35,7 +35,7 @@ void negotiation_service::on_negotiation_request(message_ex *req)
 {
     dassert(!req->io_session->is_client(), "only server session receive negotiation request");
 
-    // return SASL_NO_AUTH if auth is not enable
+    // return SASL_AUTH_DISABLE if auth is not enable
     if (!security::FLAGS_enable_auth) {
         reply_no_auth(req);
         return;
@@ -51,7 +51,7 @@ void negotiation_service::reply_no_auth(message_ex *req)
     auto resp = req->create_response();
 
     negotiation_response response;
-    response.status = negotiation_status::type::SASL_NO_AUTH;
+    response.status = negotiation_status::type::SASL_AUTH_DISABLE;
     marshall(resp, response);
     dsn_rpc_reply(resp);
 }
