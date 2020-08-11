@@ -45,19 +45,6 @@ void client_negotiation::list_mechanisms()
 
 void client_negotiation::handle_response(message_ptr resp)
 {
-    if (resp->error() == ERR_HANDLER_NOT_FOUND && !_session->mandantory_auth()) {
-        dwarn_f("{}: treat negotiation succeed as server doesn't support it, user_name in later "
-                "messages aren't trustable",
-                _name);
-        succ_negotiation();
-        return;
-    }
-    if (resp->error() != ERR_OK) {
-        derror_f("{}: negotiation failed, error = {}", _name, resp->error().to_string());
-        fail_negotiation();
-        return;
-    }
-
     negotiation_response response;
     dsn::unmarshall(resp, response);
 
