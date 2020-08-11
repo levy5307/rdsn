@@ -29,7 +29,7 @@ class server_negotiation : public negotiation
 {
 public:
     server_negotiation(rpc_session *session);
-    void start_negotiate();
+    void start();
     void handle_request(message_ptr msg);
 
 private:
@@ -48,7 +48,6 @@ private:
 
 private:
     // for logging
-    std::string _name;
     std::string _selected_mechanism;
     std::unique_ptr<sasl_conn_t, sasl_deleter> _sasl_conn;
 };

@@ -30,7 +30,7 @@ class client_negotiation : public negotiation
 {
 public:
     client_negotiation(rpc_session *session);
-    void start_negotiate();
+    void start();
 
 private:
     void handle_response(message_ptr resp);
@@ -45,13 +45,12 @@ private:
     error_s send_sasl_initiate_msg();
     error_s do_sasl_step(const std::string &input, std::string &output);
 
-    void send(const negotiation_request &n);
+    void send(const negotiation_request &request);
     void fail_negotiation();
     void succ_negotiation();
 
 private:
     // for logging
-    std::string _name;
     std::string _selected_mechanism;
     std::unique_ptr<sasl_conn_t, sasl_deleter> _sasl_conn;
 };

@@ -24,9 +24,13 @@
 
 namespace dsn {
 namespace security {
-client_negotiation::client_negotiation(rpc_session *session) : negotiation(session) {}
 
-void client_negotiation::start_negotiate()
+client_negotiation::client_negotiation(rpc_session *session) : negotiation(session)
+{
+    _name = fmt::format("CLIENT_NEGOTIATION(SERVER={})", _session->remote_address().to_string());
+}
+
+void client_negotiation::start()
 {
     ddebug_f("{}: start negotiation", _name);
     list_mechanisms();
@@ -34,9 +38,9 @@ void client_negotiation::start_negotiate()
 
 void client_negotiation::list_mechanisms()
 {
-    negotiation_request req;
-    _status = req.status = negotiation_status::type::SASL_LIST_MECHANISMS;
-    send(req);
+    negotiation_request request;
+    _status = request.status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    send(request);
 }
 
 void client_negotiation::handle_response(message_ptr resp)
@@ -58,7 +62,7 @@ void client_negotiation::handle_response(message_ptr resp)
     dsn::unmarshall(resp, response);
 
     // if server doesn't enable auth and the auth is not mandantory, make the negotiation success
-    if (negotiation_status::type::SASL_NO_AUTH == response.status && !_session->mandantory_auth()) {
+    if (negotiation_status::type::SASL_AUTH_DISABLE == response.status && !_session->mandantory_auth()) {
         dwarn_f("{}: treat negotiation succeed as server doesn't enable it, user_name in later "
                 "messages aren't trustable",
                 _name);
@@ -187,7 +191,7 @@ void client_negotiation::handle_challenge(const negotiation_response &challenge)
         }
 
         negotiation_request request;
-        _status = request.status = negotiation_status::type::SASL_RESPONSE;
+        _status = request.status = negotiation_status::type::SASL_CHANLLENGE_RESP;
         request.msg = response_msg;
         send(request);
         return;

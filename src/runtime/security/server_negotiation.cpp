@@ -23,9 +23,12 @@
 namespace dsn {
 namespace security {
 
-server_negotiation::server_negotiation(rpc_session *session) : negotiation(session) {}
+server_negotiation::server_negotiation(rpc_session *session) : negotiation(session)
+{
+    _name = fmt::format("SERVER_NEGOTIATION(CLIENT={})", _session->remote_address().to_string());
+}
 
-void server_negotiation::start_negotiate()
+void server_negotiation::start()
 {
     _status = negotiation_status::type::SASL_LIST_MECHANISMS;
     ddebug_f("{}: start negotiation", _name);
@@ -224,6 +227,5 @@ void server_negotiation::handle_client_response_on_challenge(const message_ptr &
         reply(req, challenge);
     }
 }
-
 } // namespace security
 } // namespace dsn

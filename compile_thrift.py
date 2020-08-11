@@ -102,7 +102,7 @@ thrift_description = [
                 "remove": ["\"security_types.h\""]
             }
         }
-    },
+    }
 ]
 
 

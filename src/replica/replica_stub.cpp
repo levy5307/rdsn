@@ -706,7 +706,7 @@ void replica_stub::initialize(const replication_options &opts, bool clear /* = f
         _fs_manager.add_replica(kv.first, kv.second->dir());
     }
 
-    _nfs = std::move(dsn::nfs_node::create());
+    _nfs = dsn::nfs_node::create();
     _nfs->start();
 
     std::string super_user = "";
@@ -2762,7 +2762,7 @@ replica_stub::split_replica_exec(dsn::task_code code, gpid pid, local_execution 
     if (replica && handler) {
         tasking::enqueue(code,
                          replica.get()->tracker(),
-                         [this, handler, replica]() { handler(replica); },
+                         [handler, replica]() { handler(replica); },
                          pid.thread_hash());
         return ERR_OK;
     }
