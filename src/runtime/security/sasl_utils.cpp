@@ -7,12 +7,11 @@
 #include <dsn/c/api_utilities.h>
 #include <dsn/utility/config_api.h>
 #include <dsn/dist/fmt_logging.h>
+#include <dsn/utility/flags.h>
 
 namespace dsn {
 namespace security {
-
-// use anonymous to define client/server callback
-namespace {
+DSN_DEFINE_string("security", sasl_plugin_path, "/usr/lib/sasl2", "path to search sasl plugins");
 
 const char *logger_level_to_string(int level)
 {
@@ -38,8 +37,6 @@ const char *logger_level_to_string(int level)
     }
 }
 
-static const char *plugins_search_path = nullptr;
-
 int sasl_simple_logger(void *context, int level, const char *msg)
 {
     // TODO: we can set a level to print sasl log info
@@ -56,7 +53,7 @@ int getpath(void *context, char **path)
     if (nullptr == path) {
         return SASL_BADPARAM;
     }
-    *path = const_cast<char *>(plugins_search_path);
+    *path = const_cast<char *>(FLAGS_sasl_plugin_path);
     return SASL_OK;
 }
 
@@ -127,8 +124,6 @@ const char *sasl_err_desc(int status, sasl_conn_t *conn)
     }
 }
 
-} // end anonymous namespace
-
 error_s call_sasl_func(sasl_conn_t *conn, const std::function<int()> &call)
 {
     krb5_cred_lock().lock_read();
@@ -160,8 +155,6 @@ error_s call_sasl_func(sasl_conn_t *conn, const std::function<int()> &call)
 
 error_s sasl_init(bool is_server)
 {
-    plugins_search_path = dsn_config_get_value_string(
-        "security", "sasl_plugin_path", "/usr/lib/sasl2", "path to search sasl plugins");
     sasl_set_mutex_local();
     int err = 0;
     err = sasl_client_init(&client_callbacks[0]);
