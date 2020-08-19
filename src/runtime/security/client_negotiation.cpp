@@ -19,8 +19,10 @@
 #include "sasl_utils.h"
 #include "negotiation_utils.h"
 
+#include <boost/algorithm/string/join.hpp>
 #include <dsn/dist/fmt_logging.h>
 #include <dsn/tool-api/async_calls.h>
+#include <dsn/utility/smart_pointers.h>
 
 namespace dsn {
 namespace security {
@@ -38,9 +40,9 @@ void client_negotiation::start()
 
 void client_negotiation::list_mechanisms()
 {
-    negotiation_request request;
-    _status = request.status = negotiation_status::type::SASL_LIST_MECHANISMS;
-    send(request);
+    auto request = dsn::make_unique<negotiation_request>();
+    _status = request->status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    send(std::move(request));
 }
 
 void client_negotiation::handle_response(error_code err, const negotiation_response &&response)
@@ -98,7 +100,7 @@ void client_negotiation::recv_mechanisms(const negotiation_response &resp)
     if (matched_mechanism.empty()) {
         dwarn_f("server only support mechanisms of ({}), can't find expected ({})",
                 resp_string,
-                join(supported_mechanisms.begin(), supported_mechanisms.end(), ","));
+                boost::join(supported_mechanisms, ","));
         fail_negotiation();
         return;
     }
@@ -110,11 +112,9 @@ void client_negotiation::select_mechanism(const std::string &mechanism)
 {
     _selected_mechanism = mechanism;
 
-    negotiation_request req;
-    _status = req.status = negotiation_status::type::SASL_SELECT_MECHANISMS;
-    req.msg = _selected_mechanism;
-
-    send(req);
+    auto req = dsn::make_unique<negotiation_request>();
+    _status = req->status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    send(std::move(req));
 }
 
 void client_negotiation::mechanism_selected(const negotiation_response &resp)
@@ -180,10 +180,9 @@ void client_negotiation::handle_challenge(const negotiation_response &challenge)
             return;
         }
 
-        negotiation_request request;
-        _status = request.status = negotiation_status::type::SASL_CHANLLENGE_RESP;
-        request.msg = response_msg;
-        send(request);
+        auto req = dsn::make_unique<negotiation_request>();
+        _status = req->status = negotiation_status::type::SASL_CHALLENGE_RESP;
+        send(std::move(req));
         return;
     }
 
@@ -235,10 +234,9 @@ error_s client_negotiation::send_sasl_initiate_msg()
 
     error_code code = err_s.code();
     if (code == ERR_OK || code == ERR_INCOMPLETE) {
-        negotiation_request req;
-        _status = req.status = negotiation_status::type::SASL_INITIATE;
-        req.msg.assign(msg, msg_len);
-        send(req);
+        auto req = dsn::make_unique<negotiation_request>();
+        _status = req->status = negotiation_status::type::SASL_INITIATE;
+        send(std::move(req));
     }
 
     return err_s;
@@ -257,28 +255,24 @@ error_s client_negotiation::do_sasl_step(const std::string &input, std::string &
     return err_s;
 }
 
-void client_negotiation::send(const negotiation_request &request)
-{
-    message_ptr msg = message_ex::create_request(RPC_NEGOTIATION);
-    dsn::marshall(msg.get(), request);
-
-    rpc_response_task_ptr t = rpc::create_rpc_response_task(
-        msg, nullptr, [this](error_code err, negotiation_response response) {
-            handle_response(err, std::move(response));
-        });
-    dsn_rpc_call(_session->remote_address(), t);
-}
-
 void client_negotiation::fail_negotiation()
 {
     _status = negotiation_status::type::SASL_AUTH_FAIL;
-    _session->complete_negotiation(false);
+    _session->on_failure(true);
 }
 
 void client_negotiation::succ_negotiation()
 {
     _status = negotiation_status::type::SASL_SUCC;
-    _session->complete_negotiation(true);
+    _session->on_success();
+}
+
+void client_negotiation::send(std::unique_ptr<negotiation_request> request)
+{
+    negotiation_rpc rpc(std::move(request), RPC_NEGOTIATION);
+    rpc.call(_session->remote_address(), nullptr, [this, rpc](error_code err) mutable {
+        handle_response(err, std::move(rpc.response()));
+    });
 }
 
 } // namespace security

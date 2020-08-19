@@ -237,7 +237,6 @@ public:
 
     // for negotiation
     void start_negotiation();
-    void complete_negotiation(bool succ);
     security::negotiation *get_negotiation() const;
 
 public:
@@ -261,6 +260,8 @@ public:
     bool unlink_message_for_send();
     virtual void send(uint64_t signature) = 0;
     void on_send_completed(uint64_t signature = 0);
+    void on_failure(bool is_write = false);
+    void on_success();
 
 protected:
     ///
@@ -310,7 +311,6 @@ protected:
     void clear_send_queue(bool resend_msgs);
     bool on_disconnected(bool is_write);
     bool prepare_auth_for_normal_message(message_ex *msg);
-    void on_failure(bool is_write);
 
 protected:
     // constant info

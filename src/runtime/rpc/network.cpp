@@ -466,6 +466,21 @@ bool rpc_session::prepare_auth_for_normal_message(message_ex *msg)
     return true;
 }
 
+void rpc_session::on_failure(bool is_write)
+{
+    if (on_disconnected(is_write)) {
+        close();
+    }
+}
+
+void rpc_session::on_success()
+{
+    if (is_client()) {
+        set_connected();
+        on_send_completed();
+    }
+}
+
 bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 {
     if (msg->header->from_address.is_invalid())
@@ -523,7 +538,8 @@ void rpc_session::start_negotiation()
 
         auth_negotiation();
     } else {
-        complete_negotiation(true);
+        // set negotiation success if auth is disabled
+        on_success();
     }
 }
 
@@ -531,25 +547,6 @@ void rpc_session::auth_negotiation()
 {
     _negotiation = security::create_negotiation(is_client(), this);
     _negotiation->start();
-}
-
-void rpc_session::on_failure(bool is_write)
-{
-    if (on_disconnected(is_write)) {
-        close();
-    }
-}
-
-void rpc_session::complete_negotiation(bool succ)
-{
-    if (succ) {
-        if (is_client()) {
-            set_connected();
-            on_send_completed();
-        }
-    } else {
-        on_failure(true);
-    }
 }
 
 security::negotiation *rpc_session::get_negotiation() const { return _negotiation.get(); }

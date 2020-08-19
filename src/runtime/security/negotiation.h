@@ -22,11 +22,13 @@
 #include <memory>
 #include <dsn/utility/errors.h>
 #include <dsn/tool-api/rpc_message.h>
+#include <dsn/cpp/rpc_holder.h>
 
 namespace dsn {
 class rpc_session;
 
 namespace security {
+typedef rpc_holder<negotiation_request, negotiation_response> negotiation_rpc;
 
 class negotiation
 {

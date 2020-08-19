@@ -17,7 +17,10 @@
 
 #include "server_negotiation.h"
 #include "sasl_utils.h"
+#include "negotiation_utils.h"
 
+#include <boost/algorithm/string/join.hpp>
+#include <dsn/utility/strings.h>
 #include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
@@ -64,20 +67,18 @@ void server_negotiation::succ_negotiation(negotiation_rpc rpc)
 void server_negotiation::on_list_mechanisms(negotiation_rpc rpc)
 {
     if (rpc.request().status == negotiation_status::type::SASL_LIST_MECHANISMS) {
-        std::string mech_list = join(supported_mechanisms.begin(), supported_mechanisms.end(), ",");
-        ddebug_f("{}: reply server mechs({})", _name, mech_list);
+        std::string mech_list = boost::join(supported_mechanisms, ",");
         negotiation_response &response = rpc.response();
         _status = response.status = negotiation_status::type::SASL_LIST_MECHANISMS_RESP;
         response.msg = std::move(mech_list);
-        return;
     } else {
-        dwarn_f("{}: got message({}) while expect({})",
-                _name,
-                enum_to_string(rpc.request().status),
-                enum_to_string(negotiation_status::type::SASL_LIST_MECHANISMS));
+        ddebug_f("{}: got message({}) while expect({})",
+                 _name,
+                 enum_to_string(rpc.request().status),
+                 enum_to_string(negotiation_status::type::SASL_LIST_MECHANISMS));
         fail_negotiation(rpc, "invalid_client_message_status");
-        return;
     }
+    return;
 }
 
 void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
@@ -171,7 +172,7 @@ void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc
     dinfo_f("{}: recv response negotiation message from client", _name);
     const negotiation_request &request = rpc.request();
     if (request.status != negotiation_status::type::SASL_INITIATE &&
-        request.status != negotiation_status::type::SASL_CHANLLENGE_RESP) {
+        request.status != negotiation_status::type::SASL_CHALLENGE_RESP) {
         derror_f(
             "{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(request.status));
         fail_negotiation(rpc, "invalid_client_message_type");
@@ -206,5 +207,6 @@ void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc
         challenge.msg = output;
     }
 }
+
 } // namespace security
 } // namespace dsn

@@ -22,12 +22,6 @@
 
 namespace dsn {
 namespace security {
-
-struct sasl_deleter
-{
-    void operator()(sasl_conn_t *conn) { sasl_dispose(&conn); }
-};
-
 inline const char *enum_to_string(negotiation_status::type s)
 {
     switch (s) {
@@ -47,31 +41,21 @@ inline const char *enum_to_string(negotiation_status::type s)
         return "negotiation_initiate";
     case negotiation_status::type::SASL_CHALLENGE:
         return "negotiation_challenge";
-    case negotiation_status::type::SASL_CHANLLENGE_RESP:
-        return "negotiation_chanllenge_response";
+    case negotiation_status::type::SASL_CHALLENGE_RESP:
+        return "negotiation_challenge_response";
     case negotiation_status::type::SASL_AUTH_DISABLE:
         return "negotiation_auth_disable";
     case negotiation_status::type::INVALID:
         return "negotiation_invalid";
+    default:
+        return "negotiation-unknown";
     }
-    return "negotiation-unkown";
 }
 
-template <typename ForwardIterator>
-std::string join(ForwardIterator begin, ForwardIterator end, const std::string &token)
+struct sasl_deleter
 {
-    std::stringstream result;
-    if (begin != end) {
-        result << std::string(begin->data(), begin->size());
-        ++begin;
-    }
-    while (begin != end) {
-        result << token;
-        result << std::string(begin->data(), begin->size());
-        ++begin;
-    }
-    return result.str();
-}
+    void operator()(sasl_conn_t *conn) { sasl_dispose(&conn); }
+};
 
 DEFINE_TASK_CODE_RPC(RPC_NEGOTIATION, TASK_PRIORITY_COMMON, dsn::THREAD_POOL_DEFAULT)
 
