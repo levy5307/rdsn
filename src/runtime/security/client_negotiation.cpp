@@ -113,7 +113,9 @@ void client_negotiation::select_mechanism(const std::string &mechanism)
     _selected_mechanism = mechanism;
 
     auto req = dsn::make_unique<negotiation_request>();
-    _status = req->status = negotiation_status::type::SASL_LIST_MECHANISMS;
+    _status = req->status = negotiation_status::type::SASL_SELECT_MECHANISMS;
+    req->msg = mechanism;
+
     send(std::move(req));
 }
 
@@ -182,6 +184,7 @@ void client_negotiation::handle_challenge(const negotiation_response &challenge)
 
         auto req = dsn::make_unique<negotiation_request>();
         _status = req->status = negotiation_status::type::SASL_CHALLENGE_RESP;
+        req->msg = response_msg;
         send(std::move(req));
         return;
     }
@@ -236,6 +239,7 @@ error_s client_negotiation::send_sasl_initiate_msg()
     if (code == ERR_OK || code == ERR_INCOMPLETE) {
         auto req = dsn::make_unique<negotiation_request>();
         _status = req->status = negotiation_status::type::SASL_INITIATE;
+        req->msg.assign(msg, msg_len);
         send(std::move(req));
     }
 
