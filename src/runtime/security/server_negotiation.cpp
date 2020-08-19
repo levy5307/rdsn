@@ -46,7 +46,7 @@ void server_negotiation::handle_request(negotiation_rpc rpc)
     case negotiation_status::type::SASL_LIST_MECHANISMS_RESP:
         on_select_mechanism(rpc);
         break;
-    case negotiation_status::type::SASL_SELECT_MECHANISMS_OK:
+    case negotiation_status::type::SASL_SELECT_MECHANISMS_RESP:
     case negotiation_status::type::SASL_CHALLENGE:
         handle_client_response_on_challenge(rpc);
         break;
@@ -111,7 +111,7 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
         }
 
         negotiation_response &response = rpc.response();
-        _status = response.status = negotiation_status::type::SASL_SELECT_MECHANISMS_OK;
+        _status = response.status = negotiation_status::type::SASL_SELECT_MECHANISMS_RESP;
     } else {
         dwarn_f("{}: got message({}) while expect({})",
                 _name,

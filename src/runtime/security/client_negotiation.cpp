@@ -126,7 +126,7 @@ void client_negotiation::select_mechanism(const std::string &mechanism)
 
 void client_negotiation::mechanism_selected(const negotiation_response &resp)
 {
-    if (resp.status == negotiation_status::type::SASL_SELECT_MECHANISMS_OK) {
+    if (resp.status == negotiation_status::type::SASL_SELECT_MECHANISMS_RESP) {
         initiate_negotiation();
     } else {
         dwarn_f("{}: select mechanism({}) from server failed, type({}), reason({})",
