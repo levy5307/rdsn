@@ -62,15 +62,20 @@ void client_negotiation::handle_response(error_code err, const negotiation_respo
         return;
     }
 
-    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
+    switch (_status) {
+    case negotiation_status::type::SASL_LIST_MECHANISMS:
         recv_mechanisms(response);
-        return;
-    }
-    if (_status == negotiation_status::type::SASL_SELECT_MECHANISMS) {
+        break;
+    case negotiation_status::type::SASL_SELECT_MECHANISMS:
         mechanism_selected(response);
-        return;
+        break;
+    case negotiation_status::type::SASL_INITIATE:
+    case negotiation_status::type::SASL_CHALLENGE_RESP:
+        handle_challenge(response);
+        break;
+    default:
+        fail_negotiation();
     }
-    handle_challenge(response);
 }
 
 void client_negotiation::recv_mechanisms(const negotiation_response &resp)
@@ -166,13 +171,6 @@ void client_negotiation::initiate_negotiation()
 
 void client_negotiation::handle_challenge(const negotiation_response &challenge)
 {
-    /// TODO(zlw): delete
-    if (challenge.status == negotiation_status::type::SASL_AUTH_FAIL) {
-        dwarn_f("{}: auth failed, reason({})", _name, challenge.msg);
-        fail_negotiation();
-        return;
-    }
-
     if (challenge.status == negotiation_status::type::SASL_CHALLENGE) {
         std::string response_msg;
         error_s err_s = do_sasl_step(challenge.msg, response_msg);

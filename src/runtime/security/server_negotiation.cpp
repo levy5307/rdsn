@@ -39,16 +39,20 @@ void server_negotiation::start()
 
 void server_negotiation::handle_request(negotiation_rpc rpc)
 {
-    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS) {
+    switch (_status) {
+    case negotiation_status::type::SASL_LIST_MECHANISMS:
         on_list_mechanisms(rpc);
-        return;
-    }
-    if (_status == negotiation_status::type::SASL_LIST_MECHANISMS_RESP) {
+        break;
+    case negotiation_status::type::SASL_LIST_MECHANISMS_RESP:
         on_select_mechanism(rpc);
-        return;
+        break;
+    case negotiation_status::type::SASL_SELECT_MECHANISMS_OK:
+    case negotiation_status::type::SASL_CHALLENGE:
+        handle_client_response_on_challenge(rpc);
+        break;
+    default:
+        fail_negotiation(rpc, "wrong status");
     }
-
-    handle_client_response_on_challenge(rpc);
 }
 
 void server_negotiation::fail_negotiation(negotiation_rpc rpc, const std::string &reason)
