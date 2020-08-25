@@ -328,7 +328,6 @@ error_s init_kerberos(bool is_server)
 
     g_kinit_ctx.reset(new kinit_context);
     error_s err = g_kinit_ctx->kinit(keytab_file, principal);
-    ddebug_f("after call kinit err = {}", err.description());
 
     g_kerberos_lock.reset(new utils::rw_lock_nr);
     // TODO: start a task to update the credential(TGT)
