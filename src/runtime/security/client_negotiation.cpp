@@ -23,6 +23,7 @@
 #include <dsn/tool-api/async_calls.h>
 #include <dsn/utility/smart_pointers.h>
 #include <dsn/utility/flags.h>
+#include <dsn/utility/errors.h>
 
 namespace dsn {
 namespace security {
@@ -66,7 +67,7 @@ void client_negotiation::handle_response(error_code err, const negotiation_respo
         recv_mechanisms(response);
         break;
     case negotiation_status::type::SASL_SELECT_MECHANISMS:
-        // TBD(zlw)
+        mechanism_selected(response);
         break;
     case negotiation_status::type::SASL_INITIATE:
     case negotiation_status::type::SASL_CHALLENGE_RESP:
@@ -111,6 +112,20 @@ void client_negotiation::recv_mechanisms(const negotiation_response &resp)
     select_mechanism(match_mechanism);
 }
 
+void client_negotiation::mechanism_selected(const negotiation_response &resp)
+{
+    if (resp.status == negotiation_status::type::SASL_SELECT_MECHANISMS_RESP) {
+        initiate_negotiation();
+    } else {
+        dwarn_f("{}: select mechanism({}) from server failed, type({}), reason({})",
+                _name,
+                _selected_mechanism,
+                enum_to_string(resp.status),
+                resp.msg);
+        fail_negotiation();
+    }
+}
+
 void client_negotiation::select_mechanism(const std::string &mechanism)
 {
     _selected_mechanism = mechanism;
@@ -121,6 +136,36 @@ void client_negotiation::select_mechanism(const std::string &mechanism)
     send(std::move(req));
 }
 
+void client_negotiation::initiate_negotiation()
+{
+    error_s err_s = do_sasl_client_init();
+    if (!err_s.is_ok()) {
+        dassert_f(false,
+                  "{}: initiaze sasl client failed, error = {}, reason = {}",
+                  _name,
+                  err_s.code().to_string(),
+                  err_s.description());
+        fail_negotiation();
+        return;
+    }
+
+    err_s = send_sasl_initiate_msg();
+
+    error_code code = err_s.code();
+    const std::string &desc = err_s.description();
+
+    if (code == ERR_AUTH_NEGO_FAILED && desc.find("Ticket expired") != std::string::npos) {
+        derror_f("{}: start client negotiation with ticket expire, waiting on ticket renew", _name);
+        fail_negotiation();
+    } else if (code != ERR_OK && code != ERR_INCOMPLETE) {
+        dassert_f(false,
+                  "{}: client_negotiation: send sasl_client_start failed, error = {}, reason = {}",
+                  _name,
+                  code.to_string(),
+                  desc);
+        fail_negotiation();
+    }
+}
 void client_negotiation::send(std::unique_ptr<negotiation_request> request)
 {
     negotiation_rpc rpc(std::move(request), RPC_NEGOTIATION);
