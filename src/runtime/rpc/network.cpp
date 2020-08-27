@@ -70,31 +70,24 @@ bool rpc_session::set_connecting()
 
 void rpc_session::set_connected()
 {
-    dassert(is_client(), "must be client session");
-
     {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
         dassert((_connect_state == SS_NEGOTIATING && security::FLAGS_enable_auth) ||
                     (_connect_state == SS_CONNECTING && !security::FLAGS_enable_auth),
                 "wrong session state");
         _connect_state = SS_CONNECTED;
-        for (const auto &msg : _pending_connected) {
-            msg->dl.insert_before(&_messages);
-            ++_message_count;
-        }
-        _pending_connected.clear();
     }
 
-    rpc_session_ptr sp = this;
-    _net.on_client_session_connected(sp);
+    if (is_client()) {
+        rpc_session_ptr sp = this;
+        _net.on_client_session_connected(sp);
 
-    on_rpc_session_connected.execute(this);
+        on_rpc_session_connected.execute(this);
+    }
 }
 
 void rpc_session::set_negotiation()
 {
-    dassert(is_client(), "must be client session");
-
     {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
         dassert(_connect_state == SS_CONNECTING, "session must be connecting");
@@ -394,7 +387,7 @@ rpc_session::rpc_session(connection_oriented_network &net,
                          ::dsn::rpc_address remote_addr,
                          message_parser_ptr &parser,
                          bool is_client)
-    : _connect_state(is_client ? SS_DISCONNECTED : SS_CONNECTED),
+    : _connect_state(is_client ? SS_DISCONNECTED : SS_CONNECTING),
       _message_count(0),
       _is_sending_next(false),
       _message_sent(0),
@@ -442,7 +435,7 @@ bool rpc_session::prepare_auth_for_normal_message(message_ex *msg)
     // TODO: version + auth
     bool reject_as_unauthenticated = false;
 
-    if (security::FLAGS_enable_auth && _net.mandatory_auth()) {
+    if (security::FLAGS_enable_auth) {
         dassert(_negotiation, "negotiation not created by authentiation is necessary");
         if (!_negotiation->negotiation_succeed())
             reject_as_unauthenticated = true;
@@ -475,8 +468,8 @@ void rpc_session::on_failure(bool is_write)
 
 void rpc_session::on_success()
 {
+    set_connected();
     if (is_client()) {
-        set_connected();
         on_send_completed();
     }
 }
@@ -531,11 +524,8 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 void rpc_session::start_negotiation()
 {
     if (security::FLAGS_enable_auth) {
-        // set the negotiation state if it's a client rpc_session
-        if (is_client()) {
-            set_negotiation();
-        }
-
+        // set the negotiation state
+        set_negotiation();
         auth_negotiation();
     } else {
         // set negotiation success if auth is disabled
