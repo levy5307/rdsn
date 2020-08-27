@@ -42,7 +42,6 @@ private:
     error_s do_sasl_server_start(const std::string &input, std::string &output);
     error_s do_sasl_step(const std::string &input, std::string &output);
 
-    void fail_negotiation(negotiation_rpc rpc, const std::string &reason);
     void succ_negotiation(negotiation_rpc rpc);
 
 private:

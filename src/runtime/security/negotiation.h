@@ -42,6 +42,11 @@ public:
     virtual void start() = 0;
     const char *user_name() const { return _user_name.c_str(); }
     bool negotiation_succeed() const { return _status == negotiation_status::type::SASL_SUCC; }
+    void fail_negotiation() {
+        _status = negotiation_status::type::SASL_AUTH_FAIL;
+        _session->on_failure(true);
+    }
+
 
 protected:
     // The ownership of the negotiation instance is held by rpc_session.

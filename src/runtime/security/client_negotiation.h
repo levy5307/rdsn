@@ -46,7 +46,6 @@ private:
     error_s do_sasl_step(const std::string &input, std::string &output);
 
     void send(std::unique_ptr<negotiation_request> request);
-    void fail_negotiation();
     void succ_negotiation();
 
 private:

@@ -257,12 +257,6 @@ error_s client_negotiation::do_sasl_step(const std::string &input, std::string &
     return err_s;
 }
 
-void client_negotiation::fail_negotiation()
-{
-    _status = negotiation_status::type::SASL_AUTH_FAIL;
-    _session->on_failure(true);
-}
-
 void client_negotiation::succ_negotiation()
 {
     _status = negotiation_status::type::SASL_SUCC;

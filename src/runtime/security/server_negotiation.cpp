@@ -51,15 +51,8 @@ void server_negotiation::handle_request(negotiation_rpc rpc)
         handle_client_response_on_challenge(rpc);
         break;
     default:
-        fail_negotiation(rpc, "wrong status");
+        fail_negotiation();
     }
-}
-
-void server_negotiation::fail_negotiation(negotiation_rpc rpc, const std::string &reason)
-{
-    negotiation_response &response = rpc.response();
-    _status = response.status = negotiation_status::type::SASL_AUTH_FAIL;
-    response.msg = reason;
 }
 
 void server_negotiation::succ_negotiation(negotiation_rpc rpc)
@@ -80,7 +73,7 @@ void server_negotiation::on_list_mechanisms(negotiation_rpc rpc)
                  _name,
                  enum_to_string(rpc.request().status),
                  enum_to_string(negotiation_status::type::SASL_LIST_MECHANISMS));
-        fail_negotiation(rpc, "invalid_client_message_status");
+        fail_negotiation();
     }
     return;
 }
@@ -96,7 +89,7 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
             std::string error_msg =
                 fmt::format("the mechanism of {} is not supported", _selected_mechanism);
             derror_f("{}", error_msg);
-            fail_negotiation(rpc, error_msg);
+            fail_negotiation();
             return;
         }
 
@@ -106,7 +99,7 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
                     _name,
                     err_s.code().to_string(),
                     err_s.description());
-            fail_negotiation(rpc, err_s.description());
+            fail_negotiation();
             return;
         }
 
@@ -117,7 +110,7 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
                 _name,
                 enum_to_string(request.status),
                 negotiation_status::type::SASL_SELECT_MECHANISMS);
-        fail_negotiation(rpc, "invalid_client_message_status");
+        fail_negotiation();
         return;
     }
 }
@@ -179,7 +172,7 @@ void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc
         request.status != negotiation_status::type::SASL_CHALLENGE_RESP) {
         derror_f(
             "{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(request.status));
-        fail_negotiation(rpc, "invalid_client_message_type");
+        fail_negotiation();
         return;
     }
 
@@ -196,7 +189,7 @@ void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc
                 _name,
                 err_s.code().to_string(),
                 err_s.description());
-        fail_negotiation(rpc, err_s.description());
+        fail_negotiation();
         return;
     }
 
