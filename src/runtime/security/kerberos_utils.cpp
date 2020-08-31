@@ -18,9 +18,13 @@
 #include <dsn/utility/utils.h>
 #include <dsn/utility/time_utils.h>
 #include <dsn/dist/fmt_logging.h>
+#include <dsn/utility/flags.h>
 
 namespace dsn {
 namespace security {
+
+DSN_DEFINE_string("security", service_fqdn, "", "the fully qualified domain name of the server");
+DSN_DEFINE_string("security", service_name, "", "service name");
 
 namespace {
 

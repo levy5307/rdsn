@@ -16,8 +16,8 @@
 // under the License.
 
 #include "server_negotiation.h"
-#include "sasl_utils.h"
 #include "negotiation_utils.h"
+#include "sasl_server.h"
 
 #include <boost/algorithm/string/join.hpp>
 #include <dsn/utility/strings.h>
@@ -29,6 +29,7 @@ namespace security {
 server_negotiation::server_negotiation(rpc_session *session) : negotiation(session)
 {
     _name = fmt::format("SERVER_NEGOTIATION(CLIENT={})", _session->remote_address().to_string());
+    _sasl = std::make_unique<sasl_server>();
 }
 
 void server_negotiation::start()
@@ -93,7 +94,7 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
             return;
         }
 
-        error_s err_s = do_sasl_server_init();
+        error_s err_s = _sasl->init();
         if (!err_s.is_ok()) {
             dwarn_f("{}: server initialize sasl failed, error = {}, msg = {}",
                     _name,
@@ -115,55 +116,6 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
     }
 }
 
-error_s server_negotiation::do_sasl_server_init()
-{
-    sasl_conn_t *conn = nullptr;
-    error_s err_s = call_sasl_func(nullptr, [&]() {
-        return sasl_server_new(get_service_name().c_str(),
-                               get_service_fqdn().c_str(),
-                               nullptr,
-                               nullptr,
-                               nullptr,
-                               nullptr,
-                               0,
-                               &conn);
-    });
-    if (err_s.is_ok()) {
-        _sasl_conn.reset(conn);
-    }
-
-    return err_s;
-}
-
-error_s server_negotiation::do_sasl_server_start(const std::string &input, std::string &output)
-{
-    const char *msg = nullptr;
-    unsigned msg_len = 0;
-    error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        return sasl_server_start(_sasl_conn.get(),
-                                 _selected_mechanism.c_str(),
-                                 input.c_str(),
-                                 input.length(),
-                                 &msg,
-                                 &msg_len);
-    });
-
-    output.assign(msg, msg_len);
-    return err_s;
-}
-
-error_s server_negotiation::do_sasl_step(const std::string &input, std::string &output)
-{
-    const char *msg = nullptr;
-    unsigned msg_len = 0;
-    error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        return sasl_server_step(_sasl_conn.get(), input.c_str(), input.length(), &msg, &msg_len);
-    });
-
-    output.assign(msg, msg_len);
-    return err_s;
-}
-
 void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc)
 {
     dinfo_f("{}: recv response negotiation message from client", _name);
@@ -176,15 +128,14 @@ void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc
         return;
     }
 
-    std::string output;
     error_s err_s;
+    std::string resp_msg;
     if (request.status == negotiation_status::type::SASL_INITIATE) {
-        err_s = do_sasl_server_start(request.msg, output);
+        err_s = _sasl->start(_selected_mechanism, request.msg, resp_msg);
     } else {
-        err_s = do_sasl_step(request.msg, output);
+        err_s = _sasl->step(request.msg, resp_msg);
     }
-
-    if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
+    if (!err_s.is_ok() && err_s.code() != ERR_NOT_IMPLEMENTED) {
         dwarn_f("{}: negotiation failed locally, with err = {}, msg = {}",
                 _name,
                 err_s.code().to_string(),
@@ -193,15 +144,16 @@ void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc
         return;
     }
 
-    if (err_s.code() == ERR_OK) {
-        error_s err = retrive_user_name(_sasl_conn.get(), _user_name);
-        dassert_f(err.is_ok(), "{}: unexpected result({})", _name, err.description());
+    if (err_s.is_ok()) {
+        auto err = _sasl->retrive_username();
+        dassert_f(err.is_ok(), "{}: unexpected result({})", _name, err.get_error().description());
         ddebug_f("{}: negotiation succ for user({})", _name, _user_name);
+        _user_name = err.get_value();
         succ_negotiation(rpc);
     } else {
         negotiation_response &challenge = rpc.response();
         _status = challenge.status = negotiation_status::type::SASL_CHALLENGE;
-        challenge.msg = output;
+        challenge.msg = resp_msg;
     }
 }
 

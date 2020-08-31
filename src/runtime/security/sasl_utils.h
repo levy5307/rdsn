@@ -16,10 +16,5 @@ namespace dsn {
 namespace security {
 // before call sasl_init, you must call init_kerberos()
 error_s sasl_init(bool is_server);
-
-error_s call_sasl_func(sasl_conn_t *conn, const std::function<int()> &call);
-
-error_s retrive_user_name(sasl_conn_t *sasl_conn, std::string &output);
-
 } // namespace security
 } // namespace dsn

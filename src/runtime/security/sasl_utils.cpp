@@ -115,44 +115,6 @@ void sasl_set_mutex_local()
                    &sasl_mutex_free_local);
 }
 
-const char *sasl_err_desc(int status, sasl_conn_t *conn)
-{
-    if (conn != nullptr) {
-        return sasl_errdetail(conn);
-    } else {
-        return sasl_errstring(status, nullptr, nullptr);
-    }
-}
-
-error_s call_sasl_func(sasl_conn_t *conn, const std::function<int()> &call)
-{
-    krb5_cred_lock().lock_read();
-    int err = call();
-    krb5_cred_lock().unlock_read();
-    error_s ret;
-    switch (err) {
-    case SASL_OK:
-        return error_s::make(ERR_OK);
-    case SASL_CONTINUE:
-        return error_s::make(ERR_INCOMPLETE);
-    case SASL_FAIL:      // Generic failure (encompasses missing krb5 credentials).
-    case SASL_BADAUTH:   // Authentication failure.
-    case SASL_BADMAC:    // Decode failure.
-    case SASL_NOAUTHZ:   // Authorization failure.
-    case SASL_NOUSER:    // User not found.
-    case SASL_WRONGMECH: // Server doesn't support requested mechanism.
-    case SASL_BADSERV: { // Server failed mutual authentication.
-        ret = error_s::make(ERR_AUTH_NEGO_FAILED);
-        ret << "sasl auth failed, error: " << sasl_err_desc(err, conn);
-        break;
-    }
-    default:
-        ret = error_s::make(ERR_UNKNOWN);
-        break;
-    }
-    return ret;
-}
-
 error_s sasl_init(bool is_server)
 {
     sasl_set_mutex_local();
@@ -176,21 +138,6 @@ error_s sasl_init(bool is_server)
         }
     }
     return ret;
-}
-
-error_s retrive_user_name(sasl_conn_t *sasl_conn, std::string &output)
-{
-    char *username = nullptr;
-    error_s err_s = call_sasl_func(sasl_conn, [&]() {
-        return sasl_getprop(sasl_conn, SASL_USERNAME, (const void **)&username);
-    });
-
-    if (err_s.is_ok()) {
-        output = username;
-        output = output.substr(0, output.find_last_of('@'));
-        output = output.substr(0, output.find_first_of('/'));
-    }
-    return err_s;
 }
 } // namespace security
 } // namespace dsn

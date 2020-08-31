@@ -16,8 +16,8 @@
 // under the License.
 
 #include "client_negotiation.h"
-#include "sasl_utils.h"
 #include "negotiation_utils.h"
+#include "sasl_client.h"
 
 #include <boost/algorithm/string/join.hpp>
 #include <dsn/dist/fmt_logging.h>
@@ -30,6 +30,7 @@ namespace security {
 client_negotiation::client_negotiation(rpc_session *session) : negotiation(session)
 {
     _name = fmt::format("CLIENT_NEGOTIATION(SERVER={})", _session->remote_address().to_string());
+    _sasl = std::make_unique<sasl_client>();
 }
 
 void client_negotiation::start()
@@ -140,7 +141,7 @@ void client_negotiation::mechanism_selected(const negotiation_response &resp)
 
 void client_negotiation::initiate_negotiation()
 {
-    error_s err_s = do_sasl_client_init();
+    auto err_s = _sasl->init();
     if (!err_s.is_ok()) {
         dassert_f(false,
                   "{}: initiaze sasl client failed, error = {}, reason = {}",
@@ -152,18 +153,15 @@ void client_negotiation::initiate_negotiation()
     }
 
     err_s = send_sasl_initiate_msg();
-
-    error_code code = err_s.code();
     const std::string &desc = err_s.description();
-
-    if (code == ERR_AUTH_NEGO_FAILED && desc.find("Ticket expired") != std::string::npos) {
+    if (err_s.code() == ERR_AUTH_NEGO_FAILED && desc.find("Ticket expired") != std::string::npos) {
         derror_f("{}: start client negotiation with ticket expire, waiting on ticket renew", _name);
         fail_negotiation();
-    } else if (code != ERR_OK && code != ERR_INCOMPLETE) {
+    } else if (!err_s.is_ok() && err_s.code() != ERR_NOT_IMPLEMENTED) {
         dassert_f(false,
                   "{}: client_negotiation: send sasl_client_start failed, error = {}, reason = {}",
                   _name,
-                  code.to_string(),
+                  err_s.code().to_string(),
                   desc);
         fail_negotiation();
     }
@@ -173,9 +171,9 @@ void client_negotiation::handle_challenge(const negotiation_response &challenge)
 {
     if (challenge.status == negotiation_status::type::SASL_CHALLENGE) {
         std::string response_msg;
-        error_s err_s = do_sasl_step(challenge.msg, response_msg);
-        if (err_s.code() != ERR_OK && err_s.code() != ERR_INCOMPLETE) {
-            derror_f("{}: negotiation failed locally, reason = {}", _name, err_s.description());
+        auto err = _sasl->step(challenge.msg, response_msg);
+        if (!err.is_ok() && err.code() != ERR_NOT_IMPLEMENTED) {
+            derror_f("{}: negotiation failed locally, reason = {}", _name, err.description());
             fail_negotiation();
             return;
         }
@@ -189,11 +187,12 @@ void client_negotiation::handle_challenge(const negotiation_response &challenge)
 
     if (challenge.status == negotiation_status::type::SASL_SUCC) {
         ddebug_f("{}: negotiation succ", _name);
-        error_s err = retrive_user_name(_sasl_conn.get(), _user_name);
+        auto err = _sasl->retrive_username();
         dassert_f(err.is_ok(),
                   "{}: can't get user name for completed connection reason ({})",
                   _name,
-                  err.description());
+                  err.get_error().description());
+        _user_name = err.get_value();
         succ_negotiation();
         return;
     }
@@ -202,59 +201,18 @@ void client_negotiation::handle_challenge(const negotiation_response &challenge)
     fail_negotiation();
 }
 
-error_s client_negotiation::do_sasl_client_init()
-{
-    sasl_conn_t *conn = nullptr;
-    error_s err_s = call_sasl_func(nullptr, [&]() {
-        return sasl_client_new(get_service_name().c_str(),
-                               get_service_fqdn().c_str(),
-                               nullptr,
-                               nullptr,
-                               nullptr,
-                               0,
-                               &conn);
-    });
-
-    if (err_s.is_ok()) {
-        _sasl_conn.reset(conn);
-    }
-
-    return err_s;
-}
-
 error_s client_negotiation::send_sasl_initiate_msg()
 {
-    const char *msg = nullptr;
-    unsigned msg_len = 0;
-    const char *client_mech = nullptr;
-
-    error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        return sasl_client_start(
-            _sasl_conn.get(), _selected_mechanism.c_str(), nullptr, &msg, &msg_len, &client_mech);
-    });
-
-    error_code code = err_s.code();
-    if (code == ERR_OK || code == ERR_INCOMPLETE) {
+    std::string resp_msg;
+    auto err = _sasl->start(_selected_mechanism, "", resp_msg);
+    if (err.is_ok() || err.code() == ERR_NOT_IMPLEMENTED) {
         auto req = dsn::make_unique<negotiation_request>();
         _status = req->status = negotiation_status::type::SASL_INITIATE;
-        req->msg.assign(msg, msg_len);
+        req->msg = resp_msg;
         send(std::move(req));
     }
 
-    return err_s;
-}
-
-error_s client_negotiation::do_sasl_step(const std::string &input, std::string &output)
-{
-    const char *msg = nullptr;
-    unsigned msg_len = 0;
-    error_s err_s = call_sasl_func(_sasl_conn.get(), [&]() {
-        return sasl_client_step(
-            _sasl_conn.get(), input.c_str(), input.length(), nullptr, &msg, &msg_len);
-    });
-
-    output.assign(msg, msg_len);
-    return err_s;
+    return err;
 }
 
 void client_negotiation::succ_negotiation()

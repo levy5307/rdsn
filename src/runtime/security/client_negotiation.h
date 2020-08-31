@@ -41,9 +41,7 @@ private:
     void initiate_negotiation();
     void handle_challenge(const negotiation_response &resp);
 
-    error_s do_sasl_client_init();
     error_s send_sasl_initiate_msg();
-    error_s do_sasl_step(const std::string &input, std::string &output);
 
     void send(std::unique_ptr<negotiation_request> request);
     void succ_negotiation();
@@ -51,7 +49,6 @@ private:
 private:
     // for logging
     std::string _selected_mechanism;
-    std::unique_ptr<sasl_conn_t, sasl_deleter> _sasl_conn;
 };
 
 } // namespace security

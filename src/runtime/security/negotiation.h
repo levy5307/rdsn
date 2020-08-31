@@ -18,6 +18,7 @@
 #pragma once
 
 #include "security_types.h"
+#include "sasl_wrapper.h"
 
 #include <memory>
 #include <dsn/utility/errors.h>
@@ -47,7 +48,6 @@ public:
         _session->on_failure(true);
     }
 
-
 protected:
     // The ownership of the negotiation instance is held by rpc_session.
     // So negotiation keeps only a raw pointer.
@@ -55,6 +55,7 @@ protected:
     std::string _user_name;
     std::string _name;
     negotiation_status::type _status;
+    std::unique_ptr<sasl_wrapper> _sasl;
 };
 
 std::unique_ptr<negotiation> create_negotiation(bool is_client, rpc_session *session);
