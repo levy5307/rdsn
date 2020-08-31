@@ -19,6 +19,8 @@
 
 #include "negotiation.h"
 
+#include <dsn/utility/errors.h>
+
 namespace dsn {
 namespace security {
 
@@ -32,9 +34,13 @@ public:
 private:
     void handle_response(error_code err, const negotiation_response &&response);
     void on_recv_mechanisms(const negotiation_response &resp);
+    void on_mechanism_selected(const negotiation_response &resp);
 
     void list_mechanisms();
     void select_mechanism(const std::string &mechanism);
+    void initiate_negotiation();
+    error_s sasl_client_init();
+    error_s send_sasl_initiate_msg();
     void send(std::unique_ptr<negotiation_request> request);
     void succ_negotiation();
 };
