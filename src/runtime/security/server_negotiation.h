@@ -40,7 +40,6 @@ private:
     void succ_negotiation(negotiation_rpc rpc);
 
 private:
-    // for logging
     std::string _selected_mechanism;
 };
 

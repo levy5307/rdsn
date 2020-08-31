@@ -47,7 +47,6 @@ private:
     void succ_negotiation();
 
 private:
-    // for logging
     std::string _selected_mechanism;
 };
 
