@@ -17,7 +17,7 @@
 
 #include "server_negotiation.h"
 #include "negotiation_utils.h"
-#include "sasl_server.h"
+#include "sasl_server_wrapper.h"
 
 #include <boost/algorithm/string/join.hpp>
 #include <dsn/utility/strings.h>
@@ -29,7 +29,7 @@ namespace security {
 server_negotiation::server_negotiation(rpc_session *session) : negotiation(session)
 {
     _name = fmt::format("SERVER_NEGOTIATION(CLIENT={})", _session->remote_address().to_string());
-    _sasl = std::make_unique<sasl_server>();
+    _sasl = std::make_unique<sasl_server_wrapper>();
 }
 
 void server_negotiation::start()

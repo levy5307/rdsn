@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "sasl_server.h"
+#include "sasl_server_wrapper.h"
 
 #include <dsn/utility/flags.h>
 #include <sasl/sasl.h>
@@ -25,15 +25,16 @@ namespace security {
 DSN_DECLARE_string(service_fqdn);
 DSN_DECLARE_string(service_name);
 
-error_s sasl_server::init()
+error_s sasl_server_wrapper::init()
 {
     int sasl_err = sasl_server_new(
         FLAGS_service_name, FLAGS_service_fqdn, nullptr, nullptr, nullptr, nullptr, 0, &_conn);
     return wrap_error(sasl_err);
 }
 
-error_s
-sasl_server::start(const std::string &mechanism, const std::string &input, std::string &output)
+error_s sasl_server_wrapper::start(const std::string &mechanism,
+                                   const std::string &input,
+                                   std::string &output)
 {
     const char *msg = nullptr;
     unsigned msg_len = 0;
@@ -44,7 +45,7 @@ sasl_server::start(const std::string &mechanism, const std::string &input, std::
     return wrap_error(sasl_err);
 }
 
-error_s sasl_server::step(const std::string &input, std::string &output)
+error_s sasl_server_wrapper::step(const std::string &input, std::string &output)
 {
     const char *msg = nullptr;
     unsigned msg_len = 0;

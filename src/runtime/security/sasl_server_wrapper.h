@@ -21,12 +21,9 @@
 
 namespace dsn {
 namespace security {
-class sasl_client : public sasl_wrapper
+class sasl_server_wrapper : public sasl_wrapper
 {
 public:
-    sasl_client() = default;
-    ~sasl_client() = default;
-
     error_s init();
     error_s start(const std::string &mechanism, const std::string &input, std::string &output);
     error_s step(const std::string &input, std::string &output);
