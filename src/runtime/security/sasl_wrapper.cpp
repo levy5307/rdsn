@@ -16,6 +16,8 @@
 // under the License.
 
 #include "sasl_wrapper.h"
+#include "sasl_server_wrapper.h"
+#include "sasl_client_wrapper.h"
 
 #include <sasl/sasl.h>
 
@@ -79,5 +81,12 @@ error_s sasl_wrapper::wrap_error(int sasl_err)
     return ret;
 }
 
+std::unique_ptr<sasl_wrapper> create_sasl_wrapper(bool is_server) {
+    if (is_server) {
+        return make_unique<sasl_server_wrapper>();
+    } else {
+        return make_unique<sasl_client_wrapper>();
+    }
+}
 } // namespace security
 } // namespace dsn

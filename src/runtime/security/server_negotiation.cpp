@@ -29,7 +29,6 @@ namespace security {
 server_negotiation::server_negotiation(rpc_session *session) : negotiation(session)
 {
     _name = fmt::format("SERVER_NEGOTIATION(CLIENT={})", _session->remote_address().to_string());
-    _sasl = std::make_unique<sasl_server_wrapper>();
 }
 
 void server_negotiation::start()

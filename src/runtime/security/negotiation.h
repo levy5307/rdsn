@@ -37,6 +37,7 @@ public:
     negotiation(rpc_session *session)
         : _session(session), _status(negotiation_status::type::INVALID)
     {
+        _sasl = create_sasl_wrapper(_session->is_client());
     }
     virtual ~negotiation() = 0;
 
