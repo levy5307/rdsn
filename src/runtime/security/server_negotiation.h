@@ -34,10 +34,12 @@ public:
     void handle_request(negotiation_rpc rpc);
 
 private:
-    void handle_client_response_on_challenge(negotiation_rpc rpc);
     void on_list_mechanisms(negotiation_rpc rpc);
     void on_select_mechanism(negotiation_rpc rpc);
+    void on_initiate(negotiation_rpc rpc);
+    void on_challenge_resp(negotiation_rpc rpc);
     void succ_negotiation(negotiation_rpc rpc);
+    void check_challenge_succ(negotiation_rpc rpc, error_s err_s, const std::string &resp_msg);
 
 private:
     std::string _selected_mechanism;

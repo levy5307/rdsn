@@ -47,8 +47,9 @@ void server_negotiation::handle_request(negotiation_rpc rpc)
         on_select_mechanism(rpc);
         break;
     case negotiation_status::type::SASL_SELECT_MECHANISMS_RESP:
+        on_initiate(rpc);
     case negotiation_status::type::SASL_CHALLENGE:
-        handle_client_response_on_challenge(rpc);
+        on_challenge_resp(rpc);
         break;
     default:
         fail_negotiation();
@@ -115,25 +116,44 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
     }
 }
 
-void server_negotiation::handle_client_response_on_challenge(negotiation_rpc rpc)
+void server_negotiation::on_initiate(negotiation_rpc rpc)
 {
-    dinfo_f("{}: recv response negotiation message from client", _name);
     const negotiation_request &request = rpc.request();
-    if (request.status != negotiation_status::type::SASL_INITIATE &&
-        request.status != negotiation_status::type::SASL_CHALLENGE_RESP) {
-        derror_f(
-            "{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(request.status));
+    if (request.status != negotiation_status::type::SASL_INITIATE) {
+        dwarn_f("{}: got message({}) while expect({})",
+                _name,
+                enum_to_string(request.status),
+                negotiation_status::type::SASL_INITIATE);
         fail_negotiation();
         return;
     }
 
-    error_s err_s;
     std::string resp_msg;
-    if (request.status == negotiation_status::type::SASL_INITIATE) {
-        err_s = _sasl->start(_selected_mechanism, request.msg, resp_msg);
-    } else {
-        err_s = _sasl->step(request.msg, resp_msg);
+    error_s err_s = _sasl->start(_selected_mechanism, request.msg, resp_msg);
+    return check_challenge_succ(rpc, err_s, resp_msg);
+}
+
+void server_negotiation::on_challenge_resp(negotiation_rpc rpc)
+{
+    const negotiation_request &request = rpc.request();
+    if (request.status != negotiation_status::type::SASL_CHALLENGE_RESP) {
+        dwarn_f("{}: got message({}) while expect({})",
+                _name,
+                enum_to_string(request.status),
+                negotiation_status::type::SASL_CHALLENGE_RESP);
+        fail_negotiation();
+        return;
     }
+
+    std::string resp_msg;
+    error_s err_s = _sasl->step(request.msg, resp_msg);
+    return check_challenge_succ(rpc, err_s, resp_msg);
+}
+
+void server_negotiation::check_challenge_succ(negotiation_rpc rpc,
+                                              error_s err_s,
+                                              const std::string &resp_msg)
+{
     if (!err_s.is_ok() && err_s.code() != ERR_NOT_IMPLEMENTED) {
         dwarn_f("{}: negotiation failed locally, with err = {}, msg = {}",
                 _name,
