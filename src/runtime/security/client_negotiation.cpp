@@ -70,7 +70,7 @@ void client_negotiation::handle_response(error_code err, const negotiation_respo
         break;
     case negotiation_status::type::SASL_INITIATE:
     case negotiation_status::type::SASL_CHALLENGE_RESP:
-        // TBD(zlw)
+        on_handle_challenge(response);
         break;
     default:
         fail_negotiation();
@@ -140,6 +140,40 @@ void client_negotiation::on_mechanism_selected(const negotiation_response &resp)
                 err_s.description());
         fail_negotiation();
     }
+}
+
+void client_negotiation::on_handle_challenge(const negotiation_response &challenge)
+{
+    if (challenge.status == negotiation_status::type::SASL_CHALLENGE) {
+        std::string response_msg;
+        auto err = _sasl->step(challenge.msg, response_msg);
+        if (!err.is_ok() && err.code() != ERR_SASL_) {
+            derror_f("{}: negotiation failed locally, reason = {}", _name, err.description());
+            fail_negotiation();
+            return;
+        }
+
+        auto req = dsn::make_unique<negotiation_request>();
+        _status = req->status = negotiation_status::type::SASL_CHALLENGE_RESP;
+        req->msg = response_msg;
+        send(std::move(req));
+        return;
+    }
+
+    if (challenge.status == negotiation_status::type::SASL_SUCC) {
+        ddebug_f("{}: negotiation succ", _name);
+        auto err = _sasl->retrive_username();
+        dassert_f(err.is_ok(),
+                  "{}: can't get user name for completed connection reason ({})",
+                  _name,
+                  err.get_error().description());
+        _user_name = err.get_value();
+        succ_negotiation();
+        return;
+    }
+
+    derror_f("{}: recv wrong negotiation msg, type = {}", _name, enum_to_string(challenge.status));
+    fail_negotiation();
 }
 
 void client_negotiation::select_mechanism(const std::string &mechanism)
