@@ -118,7 +118,7 @@ void server_negotiation::on_initiate(negotiation_rpc rpc)
 void server_negotiation::on_challenge_resp(negotiation_rpc rpc)
 {
     const negotiation_request &request = rpc.request();
-    if (!check_status(request.status, negotiation_status::type::SASL_INITIATE)) {
+    if (!check_status(request.status, negotiation_status::type::SASL_CHALLENGE_RESP)) {
         fail_negotiation();
         return;
     }
