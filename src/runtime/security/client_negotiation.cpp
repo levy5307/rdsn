@@ -147,7 +147,7 @@ void client_negotiation::on_challenge(const negotiation_response &challenge)
     if (challenge.status == negotiation_status::type::SASL_CHALLENGE) {
         std::string response_msg;
         auto err = _sasl->step(challenge.msg, response_msg);
-        if (!err.is_ok() && err.code() != ERR_SASL_INCOMPLEMENT) {
+        if (!err.is_ok() && err.code() != ERR_SASL_INCOMPLETE) {
             dwarn_f("{}: negotiation failed, reason = {}", _name, err.description());
             fail_negotiation();
             return;

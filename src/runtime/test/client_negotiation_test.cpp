@@ -182,7 +182,7 @@ TEST_F(client_negotiation_test, on_challenge)
                   "ERR_OK",
                   negotiation_status::type::SASL_CHALLENGE,
                   negotiation_status::type::SASL_CHALLENGE_RESP},
-                 {"ERR_NOT_IMPLEMENTED",
+                 {"ERR_SASL_INCOMPLETE",
                   "ERR_OK",
                   negotiation_status::type::SASL_CHALLENGE,
                   negotiation_status::type::SASL_CHALLENGE_RESP},

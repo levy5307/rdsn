@@ -132,7 +132,7 @@ void server_negotiation::do_challenge(negotiation_rpc rpc,
                                       error_s err_s,
                                       const std::string &resp_msg)
 {
-    if (!err_s.is_ok() && err_s.code() != ERR_SASL_INCOMPLEMENT) {
+    if (!err_s.is_ok() && err_s.code() != ERR_SASL_INCOMPLETE) {
         dwarn_f("{}: negotiation failed, with err = {}, msg = {}",
                 _name,
                 err_s.code().to_string(),
