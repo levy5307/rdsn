@@ -173,7 +173,7 @@ TEST_F(client_negotiation_test, on_challenge)
 {
     struct
     {
-        std::string sasl_step_return_value;
+        std::string sasl_step_result;
         std::string sasl_retrive_name_result;
         negotiation_status::type resp_status;
         negotiation_status::type neg_status;
@@ -191,20 +191,20 @@ TEST_F(client_negotiation_test, on_challenge)
                   negotiation_status::type::SASL_CHALLENGE,
                   negotiation_status::type::SASL_AUTH_FAIL},
                  {"ERR_OK",
+                  "ERR_TIMEOUT",
+                  negotiation_status::type::SASL_SUCC,
+                  negotiation_status::type::SASL_AUTH_FAIL},
+                 {"ERR_OK",
                   "ERR_OK",
                   negotiation_status::type::SASL_SUCC,
                   negotiation_status::type::SASL_SUCC,
-                  "TEST_NAME"},
-                 {"ERR_OK",
-                  "ERR_TIMEOUT",
-                  negotiation_status::type::SASL_SUCC,
-                  negotiation_status::type::SASL_AUTH_FAIL}};
+                  "TEST_NAME"}};
 
     RPC_MOCKING(negotiation_rpc)
     {
         for (const auto &test : tests) {
             fail::setup();
-            fail::cfg("sasl_client_wrapper_step", "return(" + test.sasl_step_return_value + ")");
+            fail::cfg("sasl_client_wrapper_step", "return(" + test.sasl_step_result + ")");
             fail::cfg("sasl_wrapper_retrive_username",
                       "return(" + test.sasl_retrive_name_result + ")");
 

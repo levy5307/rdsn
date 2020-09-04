@@ -167,6 +167,7 @@ void client_negotiation::on_challenge(const negotiation_response &challenge)
                     _name,
                     err.get_error().description());
             fail_negotiation();
+            return;
         }
         _user_name = err.get_value();
         succ_negotiation();
