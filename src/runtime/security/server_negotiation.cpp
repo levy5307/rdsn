@@ -48,6 +48,7 @@ void server_negotiation::handle_request(negotiation_rpc rpc)
         break;
     case negotiation_status::type::SASL_SELECT_MECHANISMS_RESP:
         on_initiate(rpc);
+        break;
     case negotiation_status::type::SASL_CHALLENGE:
         on_challenge_resp(rpc);
         break;
