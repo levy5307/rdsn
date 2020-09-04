@@ -51,9 +51,13 @@ public:
         _client_negotiation->on_mechanism_selected(resp);
     }
 
+    void on_challenge(const negotiation_response &resp) { _client_negotiation->on_challenge(resp); }
+
     const std::string &get_selected_mechanism() { return _client_negotiation->_selected_mechanism; }
 
     negotiation_status::type get_negotiation_status() { return _client_negotiation->_status; }
+
+    std::string get_user_name() { return _client_negotiation->_user_name; }
 
     // _sim_session is used for holding the sim_rpc_session which is created in ctor,
     // in case it is released. Because negotiation keeps only a raw pointer.
@@ -159,6 +163,56 @@ TEST_F(client_negotiation_test, on_mechanism_selected)
             resp.status = test.resp_status;
             on_mechanism_selected(resp);
             ASSERT_EQ(get_negotiation_status(), test.neg_status);
+
+            fail::teardown();
+        }
+    }
+}
+
+TEST_F(client_negotiation_test, on_challenge)
+{
+    struct
+    {
+        std::string sasl_step_return_value;
+        std::string sasl_retrive_name_result;
+        negotiation_status::type resp_status;
+        negotiation_status::type neg_status;
+        std::string user_name;
+    } tests[] = {{"ERR_OK",
+                  "ERR_OK",
+                  negotiation_status::type::SASL_CHALLENGE,
+                  negotiation_status::type::SASL_CHALLENGE_RESP},
+                 {"ERR_NOT_IMPLEMENTED",
+                  "ERR_OK",
+                  negotiation_status::type::SASL_CHALLENGE,
+                  negotiation_status::type::SASL_CHALLENGE_RESP},
+                 {"ERR_TIMEOUT",
+                  "ERR_OK",
+                  negotiation_status::type::SASL_CHALLENGE,
+                  negotiation_status::type::SASL_AUTH_FAIL},
+                 {"ERR_OK",
+                  "ERR_OK",
+                  negotiation_status::type::SASL_SUCC,
+                  negotiation_status::type::SASL_SUCC,
+                  "TEST_NAME"},
+                 {"ERR_OK",
+                  "ERR_TIMEOUT",
+                  negotiation_status::type::SASL_SUCC,
+                  negotiation_status::type::SASL_AUTH_FAIL}};
+
+    RPC_MOCKING(negotiation_rpc)
+    {
+        for (const auto &test : tests) {
+            fail::setup();
+            fail::cfg("sasl_client_wrapper_step", "return(" + test.sasl_step_return_value + ")");
+            fail::cfg("sasl_wrapper_retrive_username",
+                      "return(" + test.sasl_retrive_name_result + ")");
+
+            negotiation_response resp;
+            resp.status = test.resp_status;
+            on_challenge(resp);
+            ASSERT_EQ(get_negotiation_status(), test.neg_status);
+            ASSERT_EQ(get_user_name(), test.user_name);
 
             fail::teardown();
         }
