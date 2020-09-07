@@ -322,6 +322,7 @@ ExternalProject_Add(cyrus-sasl
         INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1
         )
+add_dependencies(cyrus-sasl krb5)
 
 ExternalProject_Add(http-parser
         URL ${OSS_URL_PREFIX}/http-parser-2.9.4.zip
