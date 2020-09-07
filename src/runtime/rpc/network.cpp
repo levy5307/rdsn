@@ -440,7 +440,7 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
             _net.engine()->reply(msg->create_response(), ERR_UNAUTHENTICATED);
         }
         delete msg;
-        return false;
+        return true;
     }
 
     if (msg->header->context.u.is_request) {
