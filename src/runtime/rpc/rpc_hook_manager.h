@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "rpc_handler.h"
+#include "rpc_hook.h"
 
 #include <vector>
 #include <memory>
@@ -25,19 +25,19 @@
 
 namespace dsn {
 
-class rpc_handler_manager : public utils::singleton<rpc_handler_manager>
+class rpc_hook_manager : public utils::singleton<rpc_hook_manager>
 {
 public:
-    void add(std::unique_ptr<rpc_handler> interceptor);
+    void add(std::unique_ptr<rpc_hook> interceptor);
     bool on_create_session(message_ex *msg);
     bool on_receive(message_ex *msg);
     bool on_send(message_ex *msg);
 
 private:
-    rpc_handler_manager() = default;
-    friend class utils::singleton<rpc_handler_manager>;
+    rpc_hook_manager() = default;
+    friend class utils::singleton<rpc_hook_manager>;
 
-    std::vector<std::unique_ptr<rpc_handler>> _interceptors;
+    std::vector<std::unique_ptr<rpc_hook>> _hooks;
 };
 
 } // namespace dsn

@@ -15,43 +15,19 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "rpc_handler_manager.h"
+#pragma once
+
+#include <dsn/tool-api/rpc_message.h>
 
 namespace dsn {
-
-void rpc_handler_manager::add(std::unique_ptr<rpc_handler> interceptor)
+class rpc_hook
 {
-    _interceptors.push_back(interceptor);
-}
+public:
+    rpc_hook() = default;
+    virtual ~rpc_hook() = 0;
 
-bool rpc_handler_manager::on_create_session(message_ex *msg)
-{
-    bool result = true;
-    for (auto &interceptor : _interceptors) {
-        result &= interceptor->on_create_session(msg);
-    }
-
-    return result;
-}
-
-bool rpc_handler_manager::on_send(message_ex *msg)
-{
-    bool result = true;
-    for (auto &interceptor : _interceptors) {
-        result &= interceptor->on_send(msg);
-    }
-
-    return result;
-}
-
-bool rpc_handler_manager::on_receive(message_ex *msg)
-{
-    bool result = true;
-    for (auto &interceptor : _interceptors) {
-        result &= interceptor->on_receive(msg);
-    }
-
-    return result;
-}
-
+    virtual bool on_create_session(message_ex *msg) = 0;
+    virtual bool on_receive(message_ex *msg) = 0;
+    virtual bool on_send(message_ex *msg) = 0;
+};
 } // namespace dsn
