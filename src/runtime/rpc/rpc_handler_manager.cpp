@@ -15,29 +15,43 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#pragma once
-
-#include "rpc_interceptor.h"
-
-#include <vector>
-#include <memory>
-#include <dsn/utility/singleton.h>
+#include "rpc_handler_manager.h"
 
 namespace dsn {
 
-class rpc_interceptor_manager : public utils::singleton<rpc_interceptor_manager>
+void rpc_handler_manager::add(std::unique_ptr<rpc_handler> interceptor)
 {
-public:
-    void add(std::unique_ptr<rpc_interceptor> interceptor);
-    bool init();
-    bool before();
-    bool after();
+    _interceptors.push_back(interceptor);
+}
 
-private:
-    rpc_interceptor_manager() = default;
-    friend class utils::singleton<rpc_interceptor_manager>;
+bool rpc_handler_manager::on_create_session(message_ex *msg)
+{
+    bool result = true;
+    for (auto &interceptor : _interceptors) {
+        result &= interceptor->on_create_session(msg);
+    }
 
-    std::vector<std::unique_ptr<rpc_interceptor>> _interceptors;
-};
+    return result;
+}
+
+bool rpc_handler_manager::on_send(message_ex *msg)
+{
+    bool result = true;
+    for (auto &interceptor : _interceptors) {
+        result &= interceptor->on_send(msg);
+    }
+
+    return result;
+}
+
+bool rpc_handler_manager::on_receive(message_ex *msg)
+{
+    bool result = true;
+    for (auto &interceptor : _interceptors) {
+        result &= interceptor->on_receive(msg);
+    }
+
+    return result;
+}
 
 } // namespace dsn

@@ -17,15 +17,27 @@
 
 #pragma once
 
+#include "rpc_handler.h"
+
+#include <vector>
+#include <memory>
+#include <dsn/utility/singleton.h>
+
 namespace dsn {
-class rpc_interceptor
+
+class rpc_handler_manager : public utils::singleton<rpc_handler_manager>
 {
 public:
-    rpc_interceptor() = default;
-    virtual ~rpc_interceptor() = 0;
+    void add(std::unique_ptr<rpc_handler> interceptor);
+    bool on_create_session(message_ex *msg);
+    bool on_receive(message_ex *msg);
+    bool on_send(message_ex *msg);
 
-    virtual bool init() = 0;
-    virtual bool before() = 0;
-    virtual bool after() = 0;
+private:
+    rpc_handler_manager() = default;
+    friend class utils::singleton<rpc_handler_manager>;
+
+    std::vector<std::unique_ptr<rpc_handler>> _interceptors;
 };
+
 } // namespace dsn
