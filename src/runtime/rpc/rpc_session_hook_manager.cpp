@@ -24,31 +24,31 @@ void rpc_session_hook_manager::add(std::unique_ptr<rpc_session_hook> interceptor
     _hooks.push_back(std::move(interceptor));
 }
 
-bool rpc_session_hook_manager::on_connected(message_ex *msg)
+bool rpc_session_hook_manager::on_connected(rpc_session *session)
 {
     bool result = true;
     for (auto &interceptor : _hooks) {
-        result &= interceptor->on_connected(msg);
+        result &= interceptor->on_connected(session);
     }
 
     return result;
 }
 
-bool rpc_session_hook_manager::on_send(message_ex *msg)
+bool rpc_session_hook_manager::on_send_message(message_ex *msg)
 {
     bool result = true;
     for (auto &interceptor : _hooks) {
-        result &= interceptor->on_send(msg);
+        result &= interceptor->on_send_message(msg);
     }
 
     return result;
 }
 
-bool rpc_session_hook_manager::on_receive(message_ex *msg)
+bool rpc_session_hook_manager::on_receive_message(message_ex *msg)
 {
     bool result = true;
     for (auto &interceptor : _hooks) {
-        result &= interceptor->on_receive(msg);
+        result &= interceptor->on_receive_message(msg);
     }
 
     return result;

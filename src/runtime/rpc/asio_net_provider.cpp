@@ -29,6 +29,7 @@
 
 #include "asio_net_provider.h"
 #include "asio_rpc_session.h"
+#include "rpc_session_hook_manager.h"
 
 namespace dsn {
 namespace tools {
@@ -152,6 +153,8 @@ void asio_network_provider::do_accept()
                                          (std::shared_ptr<boost::asio::ip::tcp::socket> &)socket,
                                          null_parser,
                                          false);
+
+                rpc_session_hook_manager::instance().on_connected(s);
 
                 // start negotiation when server accepts the connection
                 s->start_negotiation();

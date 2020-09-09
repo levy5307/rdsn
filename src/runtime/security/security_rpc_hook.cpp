@@ -15,19 +15,14 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#pragma once
-
-#include <dsn/tool-api/rpc_message.h>
+#include "security_rpc_hook.h"
 
 namespace dsn {
-class rpc_session_hook
-{
-public:
-    rpc_session_hook() = default;
-    virtual ~rpc_session_hook() = 0;
+namespace security {
+bool security_rpc_hook::on_connected(rpc_session *session) {}
 
-    virtual bool on_connected(rpc_session *session) = 0;
-    virtual bool on_receive_message(message_ex *msg) = 0;
-    virtual bool on_send_message(message_ex *msg) = 0;
-};
+bool security_rpc_hook::on_receive_message(message_ex *msg) {}
+
+bool security_rpc_hook::on_send_message(message_ex *msg) {}
+} // namespace security
 } // namespace dsn

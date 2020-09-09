@@ -25,6 +25,7 @@
  */
 
 #include "asio_rpc_session.h"
+#include "rpc_session_hook_manager.h"
 
 namespace dsn {
 namespace tools {
@@ -192,6 +193,8 @@ void asio_rpc_session::connect()
                 dinfo("client session %s connected", _remote_addr.to_string());
 
                 set_options();
+
+                rpc_session_hook_manager::instance().on_connected(this);
 
                 // start auth negotiation when client is connecting to server
                 start_negotiation();

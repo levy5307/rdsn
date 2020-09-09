@@ -29,9 +29,9 @@ class rpc_session_hook_manager : public utils::singleton<rpc_session_hook_manage
 {
 public:
     void add(std::unique_ptr<rpc_session_hook> interceptor);
-    bool on_connected(message_ex *msg);
-    bool on_receive(message_ex *msg);
-    bool on_send(message_ex *msg);
+    bool on_connected(rpc_session *session);
+    bool on_receive_message(message_ex *msg);
+    bool on_send_message(message_ex *msg);
 
 private:
     rpc_session_hook_manager() = default;

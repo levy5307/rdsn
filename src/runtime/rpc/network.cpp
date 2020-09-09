@@ -27,7 +27,8 @@
 #include "runtime/security/negotiation.h"
 #include "runtime/security/negotiation_utils.h"
 #include "message_parser_manager.h"
-#include "runtime/rpc/rpc_engine.h"
+#include "rpc_engine.h"
+#include "rpc_session_hook_manager.h"
 
 #include <dsn/tool-api/network.h>
 #include <dsn/utility/factory_store.h>
@@ -433,6 +434,12 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     msg->to_address = _net.address();
     msg->io_session = this;
 
+    if (!rpc_session_hook_manager::instance().on_receive_message(msg)) {
+        delete msg;
+        return true;
+    }
+
+    // TODO(zlw): delete this
     // return false if msg is negotiation message and auth is not success
     if (!security::is_negotiation_message(msg->rpc_code()) && !is_auth_success(msg)) {
         // reply response with ERR_UNAUTHENTICATED if msg is request

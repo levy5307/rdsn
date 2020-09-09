@@ -17,17 +17,19 @@
 
 #pragma once
 
-#include <dsn/tool-api/rpc_message.h>
+#include "runtime/rpc/rpc_session_hook.h"
 
 namespace dsn {
-class rpc_session_hook
+namespace security {
+class security_rpc_hook : public rpc_session_hook
 {
 public:
-    rpc_session_hook() = default;
-    virtual ~rpc_session_hook() = 0;
+    security_rpc_hook() = default;
+    ~security_rpc_hook() = default;
 
-    virtual bool on_connected(rpc_session *session) = 0;
-    virtual bool on_receive_message(message_ex *msg) = 0;
-    virtual bool on_send_message(message_ex *msg) = 0;
+    bool on_connected(rpc_session *session);
+    bool on_receive_message(message_ex *msg);
+    bool on_send_message(message_ex *msg);
 };
+} // namespace security
 } // namespace dsn
