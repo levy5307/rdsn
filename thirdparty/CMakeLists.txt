@@ -313,11 +313,14 @@ ExternalProject_Add(cyrus-sasl
         http://www.cyrusimap.org/releases/cyrus-sasl-2.1.27.tar.gz
         URL_MD5 a33820c66e0622222c5aefafa1581083
         CONFIGURE_COMMAND ./configure --prefix=${TP_OUTPUT}
-        --enable-gssapi=$TP_OUTPUT
+        --enable-gssapi=${TP_OUTPUT}
         --enable-scram=no
         --enable-digest=no
         --enable-cram=no
         --enable-otp=no
+        BUILD_COMMAND make
+        INSTALL_COMMAND make install
         BUILD_IN_SOURCE 1
         )
+add_dependencies(cyrus-sasl krb5)
 
