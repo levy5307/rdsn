@@ -15,43 +15,29 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "rpc_hook_manager.h"
+#pragma once
+
+#include "rpc_session_hook.h"
+
+#include <vector>
+#include <memory>
+#include <dsn/utility/singleton.h>
 
 namespace dsn {
 
-void rpc_hook_manager::add(std::unique_ptr<rpc_hook> interceptor)
+class rpc_session_hook_manager : public utils::singleton<rpc_session_hook_manager>
 {
-    _hooks.push_back(interceptor);
-}
+public:
+    void add(std::unique_ptr<rpc_session_hook> interceptor);
+    bool on_connected(message_ex *msg);
+    bool on_receive(message_ex *msg);
+    bool on_send(message_ex *msg);
 
-bool rpc_hook_manager::on_create_session(message_ex *msg)
-{
-    bool result = true;
-    for (auto &interceptor : _hooks) {
-        result &= interceptor->on_create_session(msg);
-    }
+private:
+    rpc_session_hook_manager() = default;
+    friend class utils::singleton<rpc_session_hook_manager>;
 
-    return result;
-}
-
-bool rpc_hook_manager::on_send(message_ex *msg)
-{
-    bool result = true;
-    for (auto &interceptor : _hooks) {
-        result &= interceptor->on_send(msg);
-    }
-
-    return result;
-}
-
-bool rpc_hook_manager::on_receive(message_ex *msg)
-{
-    bool result = true;
-    for (auto &interceptor : _hooks) {
-        result &= interceptor->on_receive(msg);
-    }
-
-    return result;
-}
+    std::vector<std::unique_ptr<rpc_session_hook>> _hooks;
+};
 
 } // namespace dsn

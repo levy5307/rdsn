@@ -17,27 +17,17 @@
 
 #pragma once
 
-#include "rpc_hook.h"
-
-#include <vector>
-#include <memory>
-#include <dsn/utility/singleton.h>
+#include <dsn/tool-api/rpc_message.h>
 
 namespace dsn {
-
-class rpc_hook_manager : public utils::singleton<rpc_hook_manager>
+class rpc_session_hook
 {
 public:
-    void add(std::unique_ptr<rpc_hook> interceptor);
-    bool on_create_session(message_ex *msg);
-    bool on_receive(message_ex *msg);
-    bool on_send(message_ex *msg);
+    rpc_session_hook() = default;
+    virtual ~rpc_session_hook() = 0;
 
-private:
-    rpc_hook_manager() = default;
-    friend class utils::singleton<rpc_hook_manager>;
-
-    std::vector<std::unique_ptr<rpc_hook>> _hooks;
+    virtual bool on_connected(message_ex *msg) = 0;
+    virtual bool on_receive(message_ex *msg) = 0;
+    virtual bool on_send(message_ex *msg) = 0;
 };
-
 } // namespace dsn
