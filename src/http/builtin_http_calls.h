@@ -17,19 +17,19 @@
 
 #pragma once
 
-#include "sasl_wrapper.h"
+#include <dsn/cpp/serverlet.h>
+#include <dsn/http/http_server.h>
+#include <dsn/utility/errors.h>
 
 namespace dsn {
-namespace security {
-class sasl_client_wrapper : public sasl_wrapper
-{
-public:
-    sasl_client_wrapper() = default;
-    ~sasl_client_wrapper() = default;
 
-    error_s init();
-    error_s start(const std::string &mechanism, const blob &input, blob &output);
-    error_s step(const blob &input, blob &output);
-};
-} // namespace security
+// Register basic services for the HTTP server.
+extern void register_builtin_http_calls();
+
+extern void get_perf_counter_handler(const http_request &req, http_response &resp);
+
+extern void get_help_handler(const http_request &req, http_response &resp);
+
+extern void get_recent_start_time_handler(const http_request &req, http_response &resp);
+
 } // namespace dsn

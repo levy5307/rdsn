@@ -53,7 +53,7 @@ void server_negotiation::handle_request(negotiation_rpc rpc)
         on_initiate(rpc);
         break;
     case negotiation_status::type::SASL_CHALLENGE:
-        // TBD(zlw)
+        on_challenge_resp(rpc);
         break;
     default:
         fail_negotiation();
@@ -70,7 +70,7 @@ void server_negotiation::on_list_mechanisms(negotiation_rpc rpc)
     std::string mech_list = boost::join(supported_mechanisms, ",");
     negotiation_response &response = rpc.response();
     _status = response.status = negotiation_status::type::SASL_LIST_MECHANISMS_RESP;
-    response.msg = std::move(mech_list);
+    response.msg = blob::create_from_bytes(mech_list.data(), mech_list.length());
 }
 
 void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
@@ -81,7 +81,7 @@ void server_negotiation::on_select_mechanism(negotiation_rpc rpc)
         return;
     }
 
-    _selected_mechanism = request.msg;
+    _selected_mechanism = request.msg.to_string();
     if (supported_mechanisms.find(_selected_mechanism) == supported_mechanisms.end()) {
         dwarn_f("the mechanism of {} is not supported", _selected_mechanism);
         fail_negotiation();
@@ -110,14 +110,25 @@ void server_negotiation::on_initiate(negotiation_rpc rpc)
         return;
     }
 
-    std::string start_output;
+    blob start_output;
     error_s err_s = _sasl->start(_selected_mechanism, request.msg, start_output);
     return do_challenge(rpc, err_s, start_output);
 }
 
-void server_negotiation::do_challenge(negotiation_rpc rpc,
-                                      error_s err_s,
-                                      const std::string &resp_msg)
+void server_negotiation::on_challenge_resp(negotiation_rpc rpc)
+{
+    const negotiation_request &request = rpc.request();
+    if (!check_status(request.status, negotiation_status::type::SASL_CHALLENGE_RESP)) {
+        fail_negotiation();
+        return;
+    }
+
+    blob resp_msg;
+    error_s err_s = _sasl->step(request.msg, resp_msg);
+    return do_challenge(rpc, err_s, resp_msg);
+}
+
+void server_negotiation::do_challenge(negotiation_rpc rpc, error_s err_s, const blob &resp_msg)
 {
     if (!err_s.is_ok() && err_s.code() != ERR_SASL_INCOMPLETE) {
         dwarn_f("{}: negotiation failed, with err = {}, msg = {}",
