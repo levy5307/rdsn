@@ -30,6 +30,7 @@ public:
     bool on_connected(rpc_session *session);
     bool on_receive_message(message_ex *msg);
     bool on_send_message(message_ex *msg);
+    bool on_disconnected(message_ex *msg);
 };
 } // namespace security
 } // namespace dsn

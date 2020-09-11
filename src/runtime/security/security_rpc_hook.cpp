@@ -16,13 +16,29 @@
 // under the License.
 
 #include "security_rpc_hook.h"
+#include "negotiation.h"
 
 namespace dsn {
 namespace security {
-bool security_rpc_hook::on_connected(rpc_session *session) {}
+bool security_rpc_hook::on_connected(rpc_session *session) {
+    std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
+    nego->start();
+    session->set_negotiation(std::move(nego));
+    return true;
+}
 
-bool security_rpc_hook::on_receive_message(message_ex *msg) {}
+bool security_rpc_hook::on_receive_message(message_ex *msg) {
+    negotiation *nego = msg->io_session->get_negotiation();
+    return nego->negotiation_succeed();
+}
 
-bool security_rpc_hook::on_send_message(message_ex *msg) {}
+bool security_rpc_hook::on_send_message(message_ex *msg) {
+    negotiation *nego = msg->io_session->get_negotiation();
+    return nego->negotiation_succeed();
+}
+
+bool security_rpc_hook::on_disconnected(message_ex *msg) {
+
+}
 } // namespace security
 } // namespace dsn

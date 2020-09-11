@@ -235,6 +235,7 @@ public:
     /// for negotiation
     void start_negotiation();
     security::negotiation *get_negotiation() const;
+    void set_negotiation(std::unique_ptr<security::negotiation> nego)
 
 public:
     ///

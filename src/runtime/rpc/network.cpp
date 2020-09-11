@@ -508,6 +508,10 @@ void rpc_session::auth_negotiation()
 
 security::negotiation *rpc_session::get_negotiation() const { return _negotiation.get(); }
 
+void rpc_session::set_negotiation(std::unique_ptr<security::negotiation> nego) {
+    _negotiation = std::move(nego);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 network::network(rpc_engine *srv, network *inner_provider)
     : _engine(srv), _client_hdr_format(NET_HDR_DSN), _unknown_msg_header_format(NET_HDR_INVALID)

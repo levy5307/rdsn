@@ -29,5 +29,6 @@ public:
     virtual bool on_connected(rpc_session *session) = 0;
     virtual bool on_receive_message(message_ex *msg) = 0;
     virtual bool on_send_message(message_ex *msg) = 0;
+    virtual bool on_disconnected(message_ex *msg) = 0;
 };
 } // namespace dsn
