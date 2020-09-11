@@ -235,10 +235,6 @@ public:
     bool delay_recv(int delay_ms);
     bool on_recv_message(message_ex *msg, int delay_ms);
 
-    /// for negotiation
-    void start_negotiation();
-    security::negotiation *get_negotiation() const;
-
 public:
     ///
     /// for subclass to implement receiving message
@@ -301,12 +297,10 @@ protected:
     bool set_connecting();
     // return true when it is permitted
     bool set_disconnected();
-    void set_negotiation();
     void set_connected();
 
     void clear_send_queue(bool resend_msgs);
     bool on_disconnected(bool is_write);
-    bool is_auth_success(message_ex *msg);
 
 protected:
     // constant info
@@ -317,15 +311,10 @@ protected:
     message_parser_ptr _parser;
 
 private:
-    void auth_negotiation();
-
-private:
     const bool _is_client;
     rpc_client_matcher *_matcher;
 
     std::atomic_int _delay_server_receive_ms;
-
-    std::unique_ptr<security::negotiation> _negotiation;
 };
 
 // --------- inline implementation --------------

@@ -24,8 +24,6 @@
  * THE SOFTWARE.
  */
 
-#include "runtime/security/negotiation.h"
-#include "runtime/security/negotiation_utils.h"
 #include "message_parser_manager.h"
 #include "runtime/rpc/rpc_engine.h"
 
@@ -88,17 +86,6 @@ void rpc_session::set_connected()
     _net.on_client_session_connected(sp);
 
     on_rpc_session_connected.execute(this);
-}
-
-void rpc_session::set_negotiation()
-{
-    dassert(is_client(), "must be client session");
-
-    {
-        utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        dassert(_connect_state == SS_CONNECTING, "session must be connecting");
-        _connect_state = SS_NEGOTIATING;
-    }
 }
 
 bool rpc_session::set_disconnected()
@@ -282,11 +269,7 @@ void rpc_session::send_message(message_ex *msg)
         msg->dl.insert_before(&_messages);
         ++_message_count;
 
-        // Attention: here we only allow two cases to send message:
-        //  case 1: session's state is SS_CONNECTED
-        //  case 2: session is sending negotiation message
-        if ((SS_CONNECTED == _connect_state || security::is_negotiation_message(msg->rpc_code())) &&
-            !_is_sending_next) {
+        if ((SS_CONNECTED == _connect_state) && !_is_sending_next) {
             _is_sending_next = true;
             sig = _message_sent + 1;
             unlink_message_for_send();
@@ -402,19 +385,6 @@ bool rpc_session::on_disconnected(bool is_write)
     return ret;
 }
 
-bool rpc_session::is_auth_success(message_ex *msg)
-{
-    if (security::FLAGS_enable_auth && !_negotiation->negotiation_succeed()) {
-        dwarn_f("reject message({}) from {}, session {} client",
-                msg->rpc_code().to_string(),
-                _remote_addr.to_string(),
-                is_client() ? "is" : "isn't");
-        return false;
-    }
-
-    return true;
-}
-
 void rpc_session::on_failure(bool is_write)
 {
     if (on_disconnected(is_write)) {
@@ -440,17 +410,6 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     if (!on_rpc_receive_message.execute(msg, true)) {
         delete msg;
         return true;
-    }
-
-    /// TODO(zlw): delete
-    // return false if msg is negotiation message and auth is not success
-    if (!security::is_negotiation_message(msg->rpc_code()) && !is_auth_success(msg)) {
-        // reply response with ERR_UNAUTHENTICATED if msg is request
-        if (msg->header->context.u.is_request) {
-            _net.engine()->reply(msg->create_response(), ERR_UNAUTHENTICATED);
-        }
-        delete msg;
-        return false;
     }
 
     if (msg->header->context.u.is_request) {
@@ -487,29 +446,6 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 
     return true;
 }
-
-void rpc_session::start_negotiation()
-{
-    if (security::FLAGS_enable_auth) {
-        // set the negotiation state if it's a client rpc_session
-        if (is_client()) {
-            set_negotiation();
-        }
-
-        auth_negotiation();
-    } else {
-        // set negotiation success if auth is disabled
-        on_success();
-    }
-}
-
-void rpc_session::auth_negotiation()
-{
-    _negotiation = security::create_negotiation(is_client(), this);
-    _negotiation->start();
-}
-
-security::negotiation *rpc_session::get_negotiation() const { return _negotiation.get(); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 network::network(rpc_engine *srv, network *inner_provider)

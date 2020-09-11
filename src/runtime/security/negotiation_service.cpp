@@ -25,22 +25,6 @@ namespace dsn {
 namespace security {
 DSN_DECLARE_bool(enable_auth);
 
-void negotiation_service::on_rpc_receive_msg(message_ex *msg) {
-
-}
-
-void negotiation_service::on_rpc_send_msg(message_ex *msg) {
-
-}
-
-void negotiation_service::on_rpc_connected(rpc_session *session) {
-
-}
-
-void negotiation_service::on_rpc_disconnected(rpc_session *session) {
-
-}
-
 negotiation_service::negotiation_service() : serverlet("negotiation_service") {}
 
 void negotiation_service::open_service()
@@ -60,16 +44,32 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
         return;
     }
 
+
     server_negotiation *srv_negotiation =
-        static_cast<server_negotiation *>(rpc.dsn_request()->io_session->get_negotiation());
+        static_cast<server_negotiation *>(negotiations[rpc.dsn_request()->io_session].get());
     srv_negotiation->handle_request(rpc);
 }
 
+void negotiation_service::on_rpc_connected(rpc_session *session) {
+    std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
+    nego->start();
+    negotiations[session] = std::move(nego);
+}
+
+bool negotiation_service::on_rpc_recv_msg(message_ex *msg) {
+    negotiation *nego =
+            static_cast<server_negotiation *>(negotiations[rpc.dsn_request()->io_session].get());
+    return nego->negotiation_succeed();
+}
+
+bool negotiation_service::on_rpc_send_msg(message_ex *msg) {
+    return true;
+}
+
 void init_join_point() {
-    rpc_session::on_rpc_receive_message.put_back(negotiation_service::on_rpc_receive_msg, "security");
-    rpc_session::on_rpc_receive_message.put_back(negotiation_service::on_rpc_send_msg, "security");
+    rpc_session::on_rpc_receive_message.put_native(negotiation_service::on_rpc_recv_msg);
+    rpc_session::on_rpc_send_message.put_native(negotiation_service::on_rpc_send_msg);
     rpc_session::on_rpc_session_connected.put_back(negotiation_service::on_rpc_connected, "security");
-    rpc_session::on_rpc_session_disconnected.put_back(negotiation_service::on_rpc_disconnected, "security");
 }
 } // namespace security
 } // namespace dsn
