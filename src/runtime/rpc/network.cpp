@@ -39,8 +39,7 @@ namespace dsn {
     rpc_session::on_rpc_session_disconnected("rpc.session.disconnected");
 /*static*/ join_point<bool, message_ex *>
     rpc_session::on_rpc_receive_message("rpc.receive.message");
-/*static*/ join_point<bool, message_ex *>
-    rpc_session::on_rpc_send_message("rpc.send.message");
+/*static*/ join_point<bool, message_ex *> rpc_session::on_rpc_send_message("rpc.send.message");
 
 namespace security {
 DSN_DECLARE_bool(enable_auth);
@@ -384,6 +383,10 @@ bool rpc_session::on_disconnected(bool is_write)
 
     return ret;
 }
+
+void rpc_session::set_negotiation_succeed() { negotiation_succeed = true; }
+
+bool rpc_session::is_negotiation_succeed() { return negotiation_succeed; }
 
 void rpc_session::on_failure(bool is_write)
 {

@@ -235,6 +235,9 @@ public:
     bool delay_recv(int delay_ms);
     bool on_recv_message(message_ex *msg, int delay_ms);
 
+    void set_negotiation_succeed();
+    bool is_negotiation_succeed();
+
 public:
     ///
     /// for subclass to implement receiving message
@@ -315,6 +318,8 @@ private:
     rpc_client_matcher *_matcher;
 
     std::atomic_int _delay_server_receive_ms;
+
+    bool negotiation_succeed = false;
 };
 
 // --------- inline implementation --------------

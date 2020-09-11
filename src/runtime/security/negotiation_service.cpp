@@ -44,7 +44,6 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
         return;
     }
 
-
     server_negotiation *srv_negotiation =
         static_cast<server_negotiation *>(negotiations[rpc.dsn_request()->io_session].get());
     srv_negotiation->handle_request(rpc);
@@ -57,13 +56,11 @@ void negotiation_service::on_rpc_connected(rpc_session *session) {
 }
 
 bool negotiation_service::on_rpc_recv_msg(message_ex *msg) {
-    negotiation *nego =
-            static_cast<server_negotiation *>(negotiations[rpc.dsn_request()->io_session].get());
-    return nego->negotiation_succeed();
+    return msg->io_session->is_negotiation_succeed();
 }
 
 bool negotiation_service::on_rpc_send_msg(message_ex *msg) {
-    return true;
+    return msg->io_session->is_negotiation_succeed();
 }
 
 void init_join_point() {
