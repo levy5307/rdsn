@@ -30,7 +30,6 @@
 #include <dsn/tool-api/network.h>
 #include <dsn/utility/factory_store.h>
 #include <dsn/utility/flags.h>
-#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 /*static*/ join_point<void, rpc_session *>
@@ -40,10 +39,6 @@ namespace dsn {
 /*static*/ join_point<bool, message_ex *>
     rpc_session::on_rpc_receive_message("rpc.receive.message");
 /*static*/ join_point<bool, message_ex *> rpc_session::on_rpc_send_message("rpc.send.message");
-
-namespace security {
-DSN_DECLARE_bool(enable_auth);
-} // namespace security
 
 rpc_session::~rpc_session()
 {
@@ -75,9 +70,7 @@ void rpc_session::set_connected()
 
     {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        dassert((_connect_state == SS_NEGOTIATING && security::FLAGS_enable_auth) ||
-                    (_connect_state == SS_CONNECTING && !security::FLAGS_enable_auth),
-                "wrong session state");
+        dassert(_connect_state == SS_CONNECTING, "wrong session state");
         _connect_state = SS_CONNECTED;
     }
 
@@ -395,14 +388,6 @@ void rpc_session::on_failure(bool is_write)
     }
 }
 
-void rpc_session::on_success()
-{
-    if (is_client()) {
-        set_connected();
-        on_send_completed();
-    }
-}
-
 bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 {
     if (msg->header->from_address.is_invalid())
@@ -412,7 +397,7 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 
     if (!on_rpc_receive_message.execute(msg, true)) {
         delete msg;
-        return true;
+        return false;
     }
 
     if (msg->header->context.u.is_request) {

@@ -20,10 +20,13 @@
 #include "server_negotiation.h"
 
 #include <dsn/utility/flags.h>
+#include <dsn/dist/failure_detector/fd.code.definition.h>
 
 namespace dsn {
 namespace security {
 DSN_DECLARE_bool(enable_auth);
+
+negotiation_map negotiation_service::negotiations;
 
 negotiation_service::negotiation_service() : serverlet("negotiation_service") {}
 
@@ -49,22 +52,38 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
     srv_negotiation->handle_request(rpc);
 }
 
+inline bool is_negotiation_message(dsn::task_code code)
+{
+    return code == RPC_NEGOTIATION || code == RPC_NEGOTIATION_ACK;
+}
+
+bool in_white_list(task_code code) {
+    return is_negotiation_message(code) || fd::is_failure_detector_message(code);
+}
+
 void negotiation_service::on_rpc_connected(rpc_session *session) {
     std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
     nego->start();
     negotiations[session] = std::move(nego);
 }
 
-bool negotiation_service::on_rpc_recv_msg(message_ex *msg) {
-    return msg->io_session->is_negotiation_succeed();
+bool negotiation_service::on_rpc_receive_msg(message_ex *msg) {
+    return msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
 }
 
 bool negotiation_service::on_rpc_send_msg(message_ex *msg) {
-    return msg->io_session->is_negotiation_succeed();
+    bool can_send = msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
+    // TODO(zlw): maintain a msg queue to resend the msg which are not authentiation.
+    /***
+    if (!can_send) {
+    }
+    */
+
+    return can_send;
 }
 
 void init_join_point() {
-    rpc_session::on_rpc_receive_message.put_native(negotiation_service::on_rpc_recv_msg);
+    rpc_session::on_rpc_receive_message.put_native(negotiation_service::on_rpc_receive_msg);
     rpc_session::on_rpc_send_message.put_native(negotiation_service::on_rpc_send_msg);
     rpc_session::on_rpc_session_connected.put_back(negotiation_service::on_rpc_connected, "security");
 }

@@ -235,6 +235,8 @@ public:
     bool delay_recv(int delay_ms);
     bool on_recv_message(message_ex *msg, int delay_ms);
 
+    /// interfaces for security authentication,
+    /// you can ignore them if you don't enable auth
     void set_negotiation_succeed();
     bool is_negotiation_succeed();
 
@@ -260,7 +262,6 @@ public:
     virtual void send(uint64_t signature) = 0;
     void on_send_completed(uint64_t signature = 0);
     virtual void on_failure(bool is_write = false);
-    virtual void on_success();
 
 protected:
     ///
@@ -269,7 +270,6 @@ protected:
     enum session_state
     {
         SS_CONNECTING,
-        SS_NEGOTIATING,
         SS_CONNECTED,
         SS_DISCONNECTED
     };
@@ -316,9 +316,7 @@ protected:
 private:
     const bool _is_client;
     rpc_client_matcher *_matcher;
-
     std::atomic_int _delay_server_receive_ms;
-
     bool negotiation_succeed = false;
 };
 
