@@ -28,6 +28,11 @@ class negotiation_service : public serverlet<negotiation_service>,
                             public utils::singleton<negotiation_service>
 {
 public:
+    static void on_rpc_receive_msg(message_ex *msg);
+    static void on_rpc_send_msg(message_ex *msg);
+    static void on_rpc_connected(rpc_session *session);
+    static void on_rpc_disconnected(rpc_session *session);
+
     void open_service();
 
 private:
@@ -37,5 +42,6 @@ private:
     friend class negotiation_service_test;
 };
 
+void init_negotiation_service();
 } // namespace security
 } // namespace dsn

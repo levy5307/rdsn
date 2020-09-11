@@ -206,6 +206,9 @@ public:
     */
     static join_point<void, rpc_session *> on_rpc_session_connected;
     static join_point<void, rpc_session *> on_rpc_session_disconnected;
+    static join_point<bool, message_ex *> on_rpc_receive_message;
+    static join_point<bool, message_ex *> on_rpc_send_message;
+
     /*@}*/
 public:
     rpc_session(connection_oriented_network &net,
