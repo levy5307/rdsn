@@ -65,7 +65,7 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
     srv_negotiation->handle_request(rpc);
 }
 
-void init_negotiation_service() {
+void init_join_point() {
     rpc_session::on_rpc_receive_message.put_back(negotiation_service::on_rpc_receive_msg, "security");
     rpc_session::on_rpc_receive_message.put_back(negotiation_service::on_rpc_send_msg, "security");
     rpc_session::on_rpc_session_connected.put_back(negotiation_service::on_rpc_connected, "security");

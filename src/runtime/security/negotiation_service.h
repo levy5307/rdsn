@@ -42,6 +42,6 @@ private:
     friend class negotiation_service_test;
 };
 
-void init_negotiation_service();
+void init_join_point();
 } // namespace security
 } // namespace dsn

@@ -64,7 +64,7 @@ bool init(bool is_server)
     }
     ddebug("initialize sasl succeed");
 
-    init_negotiation_service();
+    init_join_point();
     return true;
 }
 
