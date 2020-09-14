@@ -41,7 +41,7 @@ private:
     friend class utils::singleton<negotiation_service>;
     friend class negotiation_service_test;
 
-    static negotiation_map negotiations;
+    static negotiation_map _negotiations;
 };
 
 void init_join_point();

@@ -63,5 +63,7 @@ bool negotiation::check_status(negotiation_status::type status,
 
     return true;
 }
+
+void negotiation::pend_message(message_ex *msg) { _pending_connected.push_back(msg); }
 } // namespace security
 } // namespace dsn

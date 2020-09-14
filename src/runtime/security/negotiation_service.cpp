@@ -26,7 +26,7 @@ namespace dsn {
 namespace security {
 DSN_DECLARE_bool(enable_auth);
 
-negotiation_map negotiation_service::negotiations;
+negotiation_map negotiation_service::_negotiations;
 
 negotiation_service::negotiation_service() : serverlet("negotiation_service") {}
 
@@ -48,7 +48,7 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
     }
 
     server_negotiation *srv_negotiation =
-        static_cast<server_negotiation *>(negotiations[rpc.dsn_request()->io_session].get());
+        static_cast<server_negotiation *>(_negotiations[rpc.dsn_request()->io_session].get());
     srv_negotiation->handle_request(rpc);
 }
 
@@ -66,7 +66,7 @@ void negotiation_service::on_rpc_connected(rpc_session *session)
 {
     std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
     nego->start();
-    negotiations[session] = std::move(nego);
+    _negotiations[session] = std::move(nego);
 }
 
 bool negotiation_service::on_rpc_recv_msg(message_ex *msg)
@@ -77,11 +77,10 @@ bool negotiation_service::on_rpc_recv_msg(message_ex *msg)
 bool negotiation_service::on_rpc_send_msg(message_ex *msg)
 {
     bool can_send = msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
-    // TODO(zlw): maintain a msg queue to resend the msg which are not authentiation.
-    /***
     if (!can_send) {
+        negotiation *negotiation = _negotiations[msg->io_session].get();
+        negotiation->pend_message(msg);
     }
-    */
 
     return can_send;
 }
