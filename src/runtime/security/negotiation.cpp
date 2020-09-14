@@ -48,6 +48,8 @@ void negotiation::fail_negotiation()
 {
     _status = negotiation_status::type::SASL_AUTH_FAIL;
     _session->on_failure(true);
+
+    clear_pending_messages();
 }
 
 bool negotiation::check_status(negotiation_status::type status,
@@ -64,6 +66,27 @@ bool negotiation::check_status(negotiation_status::type status,
     return true;
 }
 
-void negotiation::pend_message(message_ex *msg) { _pending_connected.push_back(msg); }
+void negotiation::pend_message(message_ex *msg)
+{
+    msg->add_ref();
+    _pending_message.push_back(msg);
+}
+
+void negotiation::clear_pending_messages()
+{
+    for (auto msg : _pending_message) {
+        msg->release_ref();
+    }
+    _pending_message.clear();
+}
+
+void negotiation::resend_pending_messages()
+{
+    for (auto msg : _pending_message) {
+        _session->send_message(msg);
+        msg->release_ref();
+    }
+    _pending_message.clear();
+}
 } // namespace security
 } // namespace dsn

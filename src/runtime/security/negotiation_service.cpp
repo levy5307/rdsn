@@ -26,6 +26,16 @@ namespace dsn {
 namespace security {
 DSN_DECLARE_bool(enable_auth);
 
+inline bool is_negotiation_message(dsn::task_code code)
+{
+    return code == RPC_NEGOTIATION || code == RPC_NEGOTIATION_ACK;
+}
+
+bool in_white_list(task_code code)
+{
+    return is_negotiation_message(code) || fd::is_failure_detector_message(code);
+}
+
 negotiation_map negotiation_service::_negotiations;
 
 negotiation_service::negotiation_service() : serverlet("negotiation_service") {}
@@ -52,21 +62,19 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
     srv_negotiation->handle_request(rpc);
 }
 
-inline bool is_negotiation_message(dsn::task_code code)
-{
-    return code == RPC_NEGOTIATION || code == RPC_NEGOTIATION_ACK;
-}
-
-bool in_white_list(task_code code)
-{
-    return is_negotiation_message(code) || fd::is_failure_detector_message(code);
-}
-
 void negotiation_service::on_rpc_connected(rpc_session *session)
 {
     std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
     nego->start();
     _negotiations[session] = std::move(nego);
+}
+
+void negotiation_service::on_rpc_disconnected(rpc_session *session)
+{
+    const auto iter = _negotiations.find(session);
+    if (iter != _negotiations.end()) {
+        _negotiations.erase(iter);
+    }
 }
 
 bool negotiation_service::on_rpc_recv_msg(message_ex *msg)
@@ -91,6 +99,8 @@ void init_join_point()
     rpc_session::on_rpc_send_message.put_native(negotiation_service::on_rpc_send_msg);
     rpc_session::on_rpc_session_connected.put_back(negotiation_service::on_rpc_connected,
                                                    "security");
+    rpc_session::on_rpc_session_disconnected.put_back(negotiation_service::on_rpc_disconnected,
+                                                      "security");
 }
 } // namespace security
 } // namespace dsn

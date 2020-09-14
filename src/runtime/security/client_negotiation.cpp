@@ -188,6 +188,8 @@ void client_negotiation::succ_negotiation()
 {
     _status = negotiation_status::type::SASL_SUCC;
     _session->set_negotiation_succeed();
+
+    resend_pending_messages();
 }
 } // namespace security
 } // namespace dsn

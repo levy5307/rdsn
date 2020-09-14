@@ -254,6 +254,7 @@ void rpc_session::send_message(message_ex *msg)
     _parser->prepare_on_send(msg);
 
     if (!on_rpc_send_message.execute(msg, true)) {
+        msg->release_ref();
         return;
     }
 
