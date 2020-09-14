@@ -57,21 +57,25 @@ inline bool is_negotiation_message(dsn::task_code code)
     return code == RPC_NEGOTIATION || code == RPC_NEGOTIATION_ACK;
 }
 
-bool in_white_list(task_code code) {
+bool in_white_list(task_code code)
+{
     return is_negotiation_message(code) || fd::is_failure_detector_message(code);
 }
 
-void negotiation_service::on_rpc_connected(rpc_session *session) {
+void negotiation_service::on_rpc_connected(rpc_session *session)
+{
     std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
     nego->start();
     negotiations[session] = std::move(nego);
 }
 
-bool negotiation_service::on_rpc_receive_msg(message_ex *msg) {
+bool negotiation_service::on_rpc_recv_msg(message_ex *msg)
+{
     return msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
 }
 
-bool negotiation_service::on_rpc_send_msg(message_ex *msg) {
+bool negotiation_service::on_rpc_send_msg(message_ex *msg)
+{
     bool can_send = msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
     // TODO(zlw): maintain a msg queue to resend the msg which are not authentiation.
     /***
@@ -82,10 +86,12 @@ bool negotiation_service::on_rpc_send_msg(message_ex *msg) {
     return can_send;
 }
 
-void init_join_point() {
-    rpc_session::on_rpc_receive_message.put_native(negotiation_service::on_rpc_receive_msg);
+void init_join_point()
+{
+    rpc_session::on_rpc_recv_message.put_native(negotiation_service::on_rpc_recv_msg);
     rpc_session::on_rpc_send_message.put_native(negotiation_service::on_rpc_send_msg);
-    rpc_session::on_rpc_session_connected.put_back(negotiation_service::on_rpc_connected, "security");
+    rpc_session::on_rpc_session_connected.put_back(negotiation_service::on_rpc_connected,
+                                                   "security");
 }
 } // namespace security
 } // namespace dsn

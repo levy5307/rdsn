@@ -36,8 +36,7 @@ namespace dsn {
     rpc_session::on_rpc_session_connected("rpc.session.connected");
 /*static*/ join_point<void, rpc_session *>
     rpc_session::on_rpc_session_disconnected("rpc.session.disconnected");
-/*static*/ join_point<bool, message_ex *>
-    rpc_session::on_rpc_receive_message("rpc.receive.message");
+/*static*/ join_point<bool, message_ex *> rpc_session::on_rpc_recv_message("rpc.recv.message");
 /*static*/ join_point<bool, message_ex *> rpc_session::on_rpc_send_message("rpc.send.message");
 
 rpc_session::~rpc_session()
@@ -395,7 +394,7 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     msg->to_address = _net.address();
     msg->io_session = this;
 
-    if (!on_rpc_receive_message.execute(msg, true)) {
+    if (!on_rpc_recv_message.execute(msg, true)) {
         delete msg;
         return false;
     }
