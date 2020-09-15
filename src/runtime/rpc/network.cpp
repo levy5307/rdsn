@@ -30,6 +30,7 @@
 #include <dsn/tool-api/network.h>
 #include <dsn/utility/factory_store.h>
 #include <dsn/utility/flags.h>
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 /*static*/ join_point<void, rpc_session *>
@@ -249,15 +250,15 @@ int rpc_session::prepare_parser()
 void rpc_session::send_message(message_ex *msg)
 {
     msg->add_ref(); // released in on_send_completed
-
     msg->io_session = this;
-    dassert(_parser, "parser should not be null when send");
-    _parser->prepare_on_send(msg);
 
     if (!on_rpc_send_message.execute(msg, true)) {
         msg->release_ref();
         return;
     }
+
+    dassert(_parser, "parser should not be null when send");
+    _parser->prepare_on_send(msg);
 
     uint64_t sig;
     {
@@ -383,12 +384,19 @@ bool rpc_session::on_disconnected(bool is_write)
 
 void rpc_session::set_negotiation_succeed()
 {
+    std::vector<message_ex *> swapped_pending_msgs;
     {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
         negotiation_succeed = true;
+
+        _pending_messages.swap(swapped_pending_msgs);
+        _pending_messages.clear();
     }
 
-    resend_pending_messages();
+    for (auto msg : swapped_pending_msgs) {
+        send_message(msg);
+        msg->release_ref();
+    }
 }
 
 bool rpc_session::is_negotiation_succeed()
@@ -401,36 +409,28 @@ bool rpc_session::is_negotiation_succeed()
     }
 }
 
-void rpc_session::pend_message(message_ex *msg)
+bool rpc_session::try_pend_message(message_ex *msg)
 {
-    msg->add_ref();
-    {
+    // if negotiation is not succeed, we should pend msg,
+    // in order to resend it when the negotiation is succeed
+    if (!negotiation_succeed) {
         utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        _pending_messages.push_back(msg);
+        if (!negotiation_succeed) {
+            msg->add_ref();
+            _pending_messages.push_back(msg);
+            return true;
+        }
     }
+    return false;
 }
 
 void rpc_session::clear_pending_messages()
 {
-    {
-        utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        for (auto msg : _pending_messages) {
-            msg->release_ref();
-        }
-        _pending_messages.clear();
+    utils::auto_lock<utils::ex_lock_nr> l(_lock);
+    for (auto msg : _pending_messages) {
+        msg->release_ref();
     }
-}
-
-void rpc_session::resend_pending_messages()
-{
-    {
-        utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        for (auto msg : _pending_messages) {
-            send_message(msg);
-            msg->release_ref();
-        }
-        _pending_messages.clear();
-    }
+    _pending_messages.clear();
 }
 
 void rpc_session::on_failure(bool is_write)

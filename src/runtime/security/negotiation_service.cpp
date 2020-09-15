@@ -95,11 +95,7 @@ bool negotiation_service::on_rpc_recv_msg(message_ex *msg)
 
 bool negotiation_service::on_rpc_send_msg(message_ex *msg)
 {
-    bool can_send = in_white_list(msg->rpc_code()) || msg->io_session->is_negotiation_succeed();
-    if (!can_send) {
-        msg->io_session->pend_message(msg);
-    }
-    return can_send;
+    return in_white_list(msg->rpc_code()) || !msg->io_session->try_pend_message(msg);
 }
 
 void init_join_point()

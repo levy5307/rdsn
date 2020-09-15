@@ -234,7 +234,10 @@ public:
     bool cancel(message_ex *request);
     bool delay_recv(int delay_ms);
     bool on_recv_message(message_ex *msg, int delay_ms);
-    void pend_message(message_ex *msg);
+    /// ret value:
+    ///    true  - pend succeed
+    ///    false - pend failed
+    bool try_pend_message(message_ex *msg);
 
     /// interfaces for security authentication,
     /// you can ignore them if you don't enable auth
@@ -322,7 +325,6 @@ protected:
 
 private:
     void clear_pending_messages();
-    void resend_pending_messages();
 
 private:
     const bool _is_client;
