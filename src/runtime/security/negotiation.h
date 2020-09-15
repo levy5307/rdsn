@@ -47,12 +47,8 @@ public:
     //   true:  status == expected_status
     //   false: status != expected_status
     bool check_status(negotiation_status::type status, negotiation_status::type expected_status);
-    void pend_message(message_ex *msg);
 
 protected:
-    void clear_pending_messages();
-    void resend_pending_messages();
-
     // The ownership of the negotiation instance is held by rpc_session.
     // So negotiation keeps only a raw pointer.
     rpc_session *_session;
@@ -60,10 +56,6 @@ protected:
     negotiation_status::type _status;
     std::string _selected_mechanism;
     std::unique_ptr<sasl_wrapper> _sasl;
-
-    // when the negotiation of this session isn't succeed,
-    // all messages are queued in _pending_connected.
-    std::vector<message_ex *> _pending_message;
 };
 
 std::unique_ptr<negotiation> create_negotiation(bool is_client, rpc_session *session);

@@ -41,6 +41,7 @@ namespace dsn {
 
 rpc_session::~rpc_session()
 {
+    clear_pending_messages();
     clear_send_queue(false);
 
     {
@@ -380,9 +381,57 @@ bool rpc_session::on_disconnected(bool is_write)
     return ret;
 }
 
-void rpc_session::set_negotiation_succeed() { negotiation_succeed = true; }
+void rpc_session::set_negotiation_succeed()
+{
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        negotiation_succeed = true;
+    }
 
-bool rpc_session::is_negotiation_succeed() { return negotiation_succeed; }
+    resend_pending_messages();
+}
+
+bool rpc_session::is_negotiation_succeed()
+{
+    if (negotiation_succeed) {
+        return negotiation_succeed;
+    } else {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        return negotiation_succeed;
+    }
+}
+
+void rpc_session::pend_message(message_ex *msg)
+{
+    msg->add_ref();
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        _pending_messages.push_back(msg);
+    }
+}
+
+void rpc_session::clear_pending_messages()
+{
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        for (auto msg : _pending_messages) {
+            msg->release_ref();
+        }
+        _pending_messages.clear();
+    }
+}
+
+void rpc_session::resend_pending_messages()
+{
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        for (auto msg : _pending_messages) {
+            send_message(msg);
+            msg->release_ref();
+        }
+        _pending_messages.clear();
+    }
+}
 
 void rpc_session::on_failure(bool is_write)
 {

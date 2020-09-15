@@ -234,6 +234,7 @@ public:
     bool cancel(message_ex *request);
     bool delay_recv(int delay_ms);
     bool on_recv_message(message_ex *msg, int delay_ms);
+    void pend_message(message_ex *msg);
 
     /// interfaces for security authentication,
     /// you can ignore them if you don't enable auth
@@ -276,6 +277,12 @@ protected:
     ::dsn::utils::ex_lock_nr _lock; // [
     volatile session_state _connect_state;
 
+    // when the negotiation of a session isn't succeed,
+    // all messages are queued in _pending_messages.
+    // after connected, all of them are moved to "_messages"
+    std::vector<message_ex *> _pending_messages;
+    bool negotiation_succeed = false;
+
     // messages are sent in batch, firstly all messages are linked together
     // in a doubly-linked list "_messages".
     // if no messages are on-the-flying, a batch of messages are fetch from the "_messages"
@@ -314,10 +321,13 @@ protected:
     message_parser_ptr _parser;
 
 private:
+    void clear_pending_messages();
+    void resend_pending_messages();
+
+private:
     const bool _is_client;
     rpc_client_matcher *_matcher;
     std::atomic_int _delay_server_receive_ms;
-    bool negotiation_succeed = false;
 };
 
 // --------- inline implementation --------------

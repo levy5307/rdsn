@@ -37,6 +37,7 @@ bool in_white_list(task_code code)
 }
 
 negotiation_map negotiation_service::_negotiations;
+utils::ex_lock_nr negotiation_service::_lock;
 
 negotiation_service::negotiation_service() : serverlet("negotiation_service") {}
 
@@ -57,8 +58,12 @@ void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
         return;
     }
 
-    server_negotiation *srv_negotiation =
-        static_cast<server_negotiation *>(_negotiations[rpc.dsn_request()->io_session].get());
+    server_negotiation *srv_negotiation = nullptr;
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        srv_negotiation =
+            static_cast<server_negotiation *>(_negotiations[rpc.dsn_request()->io_session].get());
+    }
     srv_negotiation->handle_request(rpc);
 }
 
@@ -66,30 +71,34 @@ void negotiation_service::on_rpc_connected(rpc_session *session)
 {
     std::unique_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
     nego->start();
-    _negotiations[session] = std::move(nego);
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        _negotiations[session] = std::move(nego);
+    }
 }
 
 void negotiation_service::on_rpc_disconnected(rpc_session *session)
 {
-    const auto iter = _negotiations.find(session);
-    if (iter != _negotiations.end()) {
-        _negotiations.erase(iter);
+    {
+        utils::auto_lock<utils::ex_lock_nr> l(_lock);
+        const auto iter = _negotiations.find(session);
+        if (iter != _negotiations.end()) {
+            _negotiations.erase(iter);
+        }
     }
 }
 
 bool negotiation_service::on_rpc_recv_msg(message_ex *msg)
 {
-    return msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
+    return in_white_list(msg->rpc_code()) || msg->io_session->is_negotiation_succeed();
 }
 
 bool negotiation_service::on_rpc_send_msg(message_ex *msg)
 {
-    bool can_send = msg->io_session->is_negotiation_succeed() || in_white_list(msg->rpc_code());
+    bool can_send = in_white_list(msg->rpc_code()) || msg->io_session->is_negotiation_succeed();
     if (!can_send) {
-        negotiation *negotiation = _negotiations[msg->io_session].get();
-        negotiation->pend_message(msg);
+        msg->io_session->pend_message(msg);
     }
-
     return can_send;
 }
 
