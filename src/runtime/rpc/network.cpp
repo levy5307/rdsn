@@ -447,6 +447,7 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     msg->to_address = _net.address();
     msg->io_session = this;
 
+    // ignore msg if join point return false
     if (!on_rpc_recv_message.execute(msg, true)) {
         delete msg;
         return true;
