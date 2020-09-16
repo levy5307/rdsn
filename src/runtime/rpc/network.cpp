@@ -449,7 +449,7 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 
     if (!on_rpc_recv_message.execute(msg, true)) {
         delete msg;
-        return false;
+        return true;
     }
 
     if (msg->header->context.u.is_request) {
