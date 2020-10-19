@@ -33,7 +33,7 @@ private:
     static utils::rw_lock_nr _lock; // [
     std::unordered_map<std::string, std::string> _acls_map;
     // ]
-    std::string _name
+    std::string _name;
 };
 } // namespace security
 } // namespace dsn
