@@ -144,6 +144,7 @@ public:
     dsn::task_code local_rpc_code;
     network_header_format hdr_format;
     int send_retry_count;
+    std::string user_name;
 
     // by message queuing
     dlink dl;
