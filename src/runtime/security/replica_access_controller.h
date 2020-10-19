@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <dsn/utility/synchronize.h>
 #include "access_controller.h"
 
 namespace dsn {
@@ -24,11 +25,15 @@ namespace security {
 class replica_access_controller : public access_controller
 {
 public:
+    replica_access_controller(const std::string &name);
     void reset(const std::string &acls);
     bool check(message_ex *msg, const acl_bit bit);
 
 private:
+    static utils::rw_lock_nr _lock; // [
     std::unordered_map<std::string, std::string> _acls_map;
+    // ]
+    std::string _name
 };
 } // namespace security
 } // namespace dsn

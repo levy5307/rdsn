@@ -28,7 +28,22 @@ DSN_DECLARE_bool(mandatory_auth);
 DSN_DECLARE_bool(enable_auth);
 DSN_DECLARE_string(super_user);
 
-void replica_access_controller::reset(const std::string &acls) {}
+replica_access_controller::replica_access_controller(const std::string &name) { _name = name; }
+
+void replica_access_controller::reset(const std::string &acls)
+{
+    {
+        utils::auto_write_lock l(_lock);
+
+        _acls_map.clear();
+        std::istringstream iss(acls);
+        std::string user_name, permission;
+        while (getline(iss, user_name, ':')) {
+            getline(iss, permission, ';');
+            _acls_map[user_name] = permission;
+        }
+    }
+}
 
 bool replica_access_controller::check(message_ex *msg, const acl_bit bit)
 {
@@ -37,12 +52,15 @@ bool replica_access_controller::check(message_ex *msg, const acl_bit bit)
         return true;
     }
 
-    auto acl = _acls_map.find(user_name);
-    if (acl == _acls_map.end()) {
-        ddebug_f("user_name {} doesn't exist in acls_map", user_name);
+    {
+        utils::auto_read_lock l(_lock);
+        auto acl = _acls_map.find(user_name);
+        if (acl == _acls_map.end()) {
+            ddebug_f("user_name {} doesn't exist in acls_map of {}", user_name, _name);
+            return false;
+        }
+        return std::bitset<10>(acl->second)[static_cast<int>(bit)];
     }
-
-    return std::bitset<10>(acl->second)[static_cast<int>(bit)];
 }
 } // namespace security
 } // namespace dsn
