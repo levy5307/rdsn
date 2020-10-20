@@ -24,10 +24,6 @@
 
 namespace dsn {
 namespace security {
-DSN_DECLARE_bool(mandatory_auth);
-DSN_DECLARE_bool(enable_auth);
-DSN_DECLARE_string(super_user);
-
 replica_access_controller::replica_access_controller(const std::string &name) { _name = name; }
 
 void replica_access_controller::reset(const std::string &acls)
@@ -48,19 +44,20 @@ void replica_access_controller::reset(const std::string &acls)
 bool replica_access_controller::check(message_ex *msg, const acl_bit bit)
 {
     const std::string &user_name = msg->user_name;
-    if (!FLAGS_enable_auth || !FLAGS_mandatory_auth || user_name == FLAGS_super_user) {
+    if (pre_check(user_name)) {
         return true;
     }
 
+    std::unordered_map<std::string, std::string>::iterator acl;
     {
         utils::auto_read_lock l(_lock);
-        auto acl = _acls_map.find(user_name);
+        acl = _acls_map.find(user_name);
         if (acl == _acls_map.end()) {
-            ddebug_f("user_name {} doesn't exist in acls_map of {}", user_name, _name);
+            ddebug_f("{}: user_name {} doesn't exist in acls_map of", _name, user_name);
             return false;
         }
-        return std::bitset<10>(acl->second)[static_cast<int>(bit)];
     }
+    return std::bitset<10>(acl->second)[static_cast<int>(bit)];
 }
 } // namespace security
 } // namespace dsn

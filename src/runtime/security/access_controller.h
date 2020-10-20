@@ -38,6 +38,9 @@ public:
 
     virtual void reset(const std::string &acls){};
     virtual bool check(message_ex *msg, const acl_bit bit) = 0;
+
+protected:
+    bool pre_check(const std::string &user_name);
 };
 } // namespace security
 } // namespace dsn

@@ -15,26 +15,21 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#pragma once
-
-#include <dsn/utility/synchronize.h>
+#include <dsn/utility/flags.h>
 #include "access_controller.h"
 
 namespace dsn {
 namespace security {
-class replica_access_controller : public access_controller
-{
-public:
-    replica_access_controller(const std::string &name);
-    void reset(const std::string &acls);
-    bool check(message_ex *msg, const acl_bit bit);
+DSN_DECLARE_bool(mandatory_auth);
+DSN_DECLARE_bool(enable_auth);
+DSN_DEFINE_string("security", super_user, "", "super user for access controller");
 
-private:
-    utils::rw_lock_nr _lock; // [
-    // format: [username, permission]
-    std::unordered_map<std::string, std::string> _acls_map;
-    // ]
-    std::string _name;
-};
+bool access_controller::pre_check(const std::string &user_name)
+{
+    if (!FLAGS_enable_auth || !FLAGS_mandatory_auth || user_name == FLAGS_super_user) {
+        return true;
+    }
+    return false;
+}
 } // namespace security
 } // namespace dsn

@@ -22,10 +22,6 @@
 
 namespace dsn {
 namespace security {
-DSN_DECLARE_bool(mandatory_auth);
-DSN_DECLARE_bool(enable_auth);
-DSN_DEFINE_string("security", super_user, "", "super user for access controller");
-
 meta_access_controller::meta_access_controller()
 {
     register_white_list("RPC_CM_LIST_APPS");
@@ -36,11 +32,10 @@ meta_access_controller::meta_access_controller()
 
 bool meta_access_controller::check(message_ex *msg, const acl_bit bit)
 {
-    if (!FLAGS_enable_auth || !FLAGS_mandatory_auth || msg->user_name == FLAGS_super_user ||
+    if (pre_check(msg->user_name) ||
         _white_list.find(msg->rpc_code().to_string()) != _white_list.end()) {
         return true;
     }
-
     return false;
 }
 
