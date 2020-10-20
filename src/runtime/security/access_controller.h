@@ -25,9 +25,9 @@ namespace security {
 
 enum class acl_bit
 {
-    NONE,
     WRITE,
     READ,
+    META,
 };
 
 class access_controller
@@ -37,7 +37,7 @@ public:
     virtual ~access_controller() = 0;
 
     virtual void reset(const std::string &acls){};
-    virtual bool check(message_ex *msg, const acl_bit bit) = 0;
+    virtual bool check(message_ex *msg, const acl_bit bit = acl_bit::META) = 0;
 
 protected:
     bool pre_check(const std::string &user_name);

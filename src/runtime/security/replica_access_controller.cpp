@@ -18,7 +18,6 @@
 #include "replica_access_controller.h"
 
 #include <dsn/tool-api/rpc_message.h>
-#include <dsn/utility/flags.h>
 #include <dsn/dist/fmt_logging.h>
 #include <bitset>
 
