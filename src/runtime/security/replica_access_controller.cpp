@@ -27,16 +27,18 @@ replica_access_controller::replica_access_controller(const std::string &name) { 
 
 void replica_access_controller::reset(const std::string &acls)
 {
-    {
-        utils::auto_write_lock l(_lock);
+    std::istringstream iss(acls);
+    std::string user_name, permission;
+    std::unordered_map<std::string, std::string> temp_acls_map;
+    while (getline(iss, user_name, ':')) {
+        getline(iss, permission, ';');
+        temp_acls_map[user_name] = permission;
+    }
 
-        _acls_map.clear();
-        std::istringstream iss(acls);
-        std::string user_name, permission;
-        while (getline(iss, user_name, ':')) {
-            getline(iss, permission, ';');
-            _acls_map[user_name] = permission;
-        }
+    {
+        // This exchanges operation is in constant time
+        utils::auto_write_lock l(_lock);
+        _acls_map.swap(temp_acls_map);
     }
 }
 
