@@ -31,7 +31,6 @@ public:
 
 private:
     utils::rw_lock_nr _lock; // [
-    // format: [username, permission]
     std::unordered_set<std::string> _users;
     // ]
     std::string _name;
