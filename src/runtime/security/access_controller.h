@@ -18,6 +18,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <memory>
 
 namespace dsn {
 class message_ex;
@@ -35,5 +36,7 @@ public:
 protected:
     bool pre_check(const std::string &user_name);
 };
+
+std::unique_ptr<access_controller> create_access_controller(bool is_meta, std::string name = "");
 } // namespace security
 } // namespace dsn

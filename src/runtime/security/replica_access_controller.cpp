@@ -19,7 +19,6 @@
 
 #include <dsn/tool-api/rpc_message.h>
 #include <dsn/dist/fmt_logging.h>
-#include <bitset>
 
 namespace dsn {
 namespace security {

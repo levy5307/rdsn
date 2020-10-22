@@ -15,8 +15,12 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include <dsn/utility/flags.h>
 #include "access_controller.h"
+
+#include <dsn/utility/flags.h>
+#include <dsn/utility/smart_pointers.h>
+#include "meta_access_controller.h"
+#include "replica_access_controller.h"
 
 namespace dsn {
 namespace security {
@@ -30,6 +34,15 @@ bool access_controller::pre_check(const std::string &user_name)
         return true;
     }
     return false;
+}
+
+std::unique_ptr<access_controller> create_access_controller(bool is_meta, std::string name)
+{
+    if (is_meta) {
+        return make_unique<meta_access_controller>();
+    } else {
+        return make_unique<replica_access_controller>(name);
+    }
 }
 } // namespace security
 } // namespace dsn

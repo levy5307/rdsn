@@ -40,6 +40,10 @@ void replica::on_client_write(dsn::message_ex *request, bool ignore_throttling)
 {
     _checker.only_one_thread_access();
 
+    if (_access_controller->check(request)) {
+        response_client_read(request, ERR_ACL_DENY);
+    }
+
     if (_deny_client_write) {
         // Do not relay any message to the peer client to let it timeout, it's OK coz some users
         // may retry immediately when they got a not success code which will make the server side
