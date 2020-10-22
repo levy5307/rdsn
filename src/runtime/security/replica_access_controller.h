@@ -26,13 +26,13 @@ class replica_access_controller : public access_controller
 {
 public:
     replica_access_controller(const std::string &name);
-    void reset(const std::string &acls);
-    bool check(message_ex *msg, const acl_bit bit);
+    void reset(const std::string &users);
+    bool check(message_ex *msg);
 
 private:
     utils::rw_lock_nr _lock; // [
     // format: [username, permission]
-    std::unordered_map<std::string, std::string> _acls_map;
+    std::unordered_set<std::string> _users;
     // ]
     std::string _name;
 };

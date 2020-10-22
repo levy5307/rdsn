@@ -25,40 +25,37 @@ namespace dsn {
 namespace security {
 replica_access_controller::replica_access_controller(const std::string &name) { _name = name; }
 
-void replica_access_controller::reset(const std::string &acls)
+void replica_access_controller::reset(const std::string &users)
 {
-    std::istringstream iss(acls);
-    std::string user_name, permission;
-    std::unordered_map<std::string, std::string> temp_acls_map;
-    while (getline(iss, user_name, ':')) {
-        getline(iss, permission, ';');
-        temp_acls_map[user_name] = permission;
+    std::istringstream iss(users);
+    std::string user_name;
+    std::unordered_set<std::string> temp_users;
+    while (getline(iss, user_name, ',')) {
+        temp_users.insert(user_name);
     }
 
     {
-        // This exchanges operation is in constant time
+        // This swap operation is in constant time
         utils::auto_write_lock l(_lock);
-        _acls_map.swap(temp_acls_map);
+        _users.swap(temp_users);
     }
 }
 
-bool replica_access_controller::check(message_ex *msg, const acl_bit bit)
+bool replica_access_controller::check(message_ex *msg)
 {
     const std::string &user_name = msg->user_name;
     if (pre_check(user_name)) {
         return true;
     }
 
-    std::unordered_map<std::string, std::string>::iterator acl;
     {
         utils::auto_read_lock l(_lock);
-        acl = _acls_map.find(user_name);
-        if (acl == _acls_map.end()) {
+        if (_users.find(user_name) == _users.end()) {
             ddebug_f("{}: user_name {} doesn't exist in acls_map of", _name, user_name);
             return false;
         }
+        return true;
     }
-    return std::bitset<10>(acl->second)[static_cast<int>(bit)];
 }
 } // namespace security
 } // namespace dsn
