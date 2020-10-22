@@ -27,17 +27,14 @@ replica_access_controller::replica_access_controller(const std::string &name) { 
 
 void replica_access_controller::reset(const std::string &users)
 {
-    std::istringstream iss(users);
-    std::string user_name;
-    std::unordered_set<std::string> temp_users;
-    while (getline(iss, user_name, ',')) {
-        temp_users.insert(user_name);
-    }
+    std::vector<std::string> users_vec;
+    utils::split_args(users.c_str(), users_vec, ',');
+    std::unordered_set<std::string> users_set(users_vec.begin(), users_vec.end());
 
     {
         // This swap operation is in constant time
         utils::auto_write_lock l(_lock);
-        _users.swap(temp_users);
+        _users.swap(users_set);
     }
 }
 
