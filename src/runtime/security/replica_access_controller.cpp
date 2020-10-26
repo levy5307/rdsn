@@ -22,42 +22,23 @@
 
 namespace dsn {
 namespace security {
-void access_control_list::reset(const std::vector<std::string> &users_vec)
-{
-    // operation= of std::shared_ptr is thread safe
-    std::shared_ptr<std::unordered_set<std::string>> users_set =
-        std::make_shared<std::unordered_set<std::string>>(users_vec.begin(), users_vec.end());
-    _users = users_set;
-}
-
-bool access_control_list::allowed(const std::string &user_name) const
-{
-    // create a new std::shared_ptr to add the ref count of _users,
-    // in order to avoid the data which is pointed by _users destroyed.
-    std::shared_ptr<std::unordered_set<std::string>> users_set = _users;
-    if (users_set->find(user_name) == users_set->end()) {
-        return true;
-    }
-    return false;
-}
-
 replica_access_controller::replica_access_controller(const std::string &name) { _name = name; }
 
 void replica_access_controller::reset(const std::string &users)
 {
     std::vector<std::string> users_vec;
     utils::split_args(users.c_str(), users_vec, ',');
-    _acl.reset(users_vec);
+    _users.reset(users_vec);
 }
 
-bool replica_access_controller::allowed(message_ex *msg)
+bool replica_access_controller::check(message_ex *msg)
 {
     const std::string &user_name = msg->user_name;
     if (pre_check(user_name)) {
         return true;
     }
 
-    if (_acl.allowed(user_name)) {
+    if (_users.find(user_name)) {
         ddebug_f("{}: user_name {} doesn't exist in acls map", _name, user_name);
         return false;
     }

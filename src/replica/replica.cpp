@@ -161,7 +161,7 @@ replica::~replica(void)
 
 void replica::on_client_read(dsn::message_ex *request)
 {
-    if (!_access_controller->allowed(request)) {
+    if (!_access_controller->check(request)) {
         response_client_read(request, ERR_ACL_DENY);
     }
 

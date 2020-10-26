@@ -31,7 +31,7 @@ public:
     virtual ~access_controller() = 0;
 
     virtual void reset(const std::string &acls){};
-    virtual bool allowed(message_ex *msg) = 0;
+    virtual bool check(message_ex *msg) = 0;
 
 protected:
     bool pre_check(const std::string &user_name);

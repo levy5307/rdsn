@@ -122,7 +122,7 @@ int meta_service::check_leader(TRpcHolder rpc, rpc_address *forward_address)
 template <typename TRpcHolder>
 bool meta_service::check_status(TRpcHolder rpc, rpc_address *forward_address)
 {
-    if (!_access_controller->allowed(rpc.dsn_request())) {
+    if (!_access_controller->check(rpc.dsn_request())) {
         rpc.response().err = ERR_ACL_DENY;
         ddebug("reject request with ERR_ACL_DENY");
         return false;
@@ -149,7 +149,7 @@ bool meta_service::check_status(TRpcHolder rpc, rpc_address *forward_address)
 template <typename TRespType>
 bool meta_service::check_status_with_msg(message_ex *req, TRespType &response_struct)
 {
-    if (!_access_controller->allowed(req)) {
+    if (!_access_controller->check(req)) {
         response_struct.err = ERR_ACL_DENY;
         ddebug("reject request with ERR_ACL_DENY");
         return false;
