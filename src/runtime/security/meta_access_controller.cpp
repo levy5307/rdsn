@@ -30,7 +30,7 @@ meta_access_controller::meta_access_controller()
     register_white_list("RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX");
 }
 
-bool meta_access_controller::check(message_ex *msg)
+bool meta_access_controller::allowed(message_ex *msg)
 {
     if (pre_check(msg->user_name) ||
         _white_list.find(msg->rpc_code().to_string()) != _white_list.end()) {
