@@ -22,13 +22,11 @@
 
 namespace dsn {
 namespace security {
-class access_control_list
+struct access_control_list
 {
-public:
     void reset(const std::vector<std::string> &users_vec);
     bool allowed(const std::string &user_name) const;
 
-private:
     std::shared_ptr<std::unordered_set<std::string>> _users;
 };
 
