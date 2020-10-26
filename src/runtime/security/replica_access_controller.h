@@ -22,30 +22,6 @@
 
 namespace dsn {
 namespace security {
-struct access_controller_data
-{
-    void reset(const std::vector<std::string> &users_vec)
-    {
-        // operation= of std::shared_ptr is thread safe
-        std::shared_ptr<std::unordered_set<std::string>> users_set =
-            std::make_shared<std::unordered_set<std::string>>(users_vec.begin(), users_vec.end());
-        _data = users_set;
-    }
-
-    bool find(const std::string &user_name) const
-    {
-        // create a new std::shared_ptr to add the ref count of _data,
-        // in order to avoid the data which is pointed by _data destroyed.
-        std::shared_ptr<std::unordered_set<std::string>> users_set = _data;
-        if (users_set->find(user_name) == users_set->end()) {
-            return true;
-        }
-        return false;
-    }
-
-    std::shared_ptr<std::unordered_set<std::string>> _data;
-};
-
 class replica_access_controller : public access_controller
 {
 public:
@@ -54,7 +30,9 @@ public:
     bool check(message_ex *msg);
 
 private:
-    access_controller_data _users;
+    utils::rw_lock_nr _lock; // [
+    std::unordered_set<std::string> _users;
+    // ]
     std::string _name;
 };
 } // namespace security

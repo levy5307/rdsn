@@ -28,7 +28,13 @@ void replica_access_controller::reset(const std::string &users)
 {
     std::vector<std::string> users_vec;
     utils::split_args(users.c_str(), users_vec, ',');
-    _users.reset(users_vec);
+    std::unordered_set<std::string> users_set(users_vec.begin(), users_vec.end());
+
+    {
+        // This swap operation is in constant time
+        utils::auto_write_lock l(_lock);
+        _users.swap(users_set);
+    }
 }
 
 bool replica_access_controller::check(message_ex *msg)
@@ -38,11 +44,14 @@ bool replica_access_controller::check(message_ex *msg)
         return true;
     }
 
-    if (_users.find(user_name)) {
-        ddebug_f("{}: user_name {} doesn't exist in acls map", _name, user_name);
-        return false;
+    {
+        utils::auto_read_lock l(_lock);
+        if (_users.find(user_name) == _users.end()) {
+            ddebug_f("{}: user_name {} doesn't exist in acls map", _name, user_name);
+            return false;
+        }
+        return true;
     }
-    return true;
 }
 } // namespace security
 } // namespace dsn
