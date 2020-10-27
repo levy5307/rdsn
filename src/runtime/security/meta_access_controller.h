@@ -28,7 +28,7 @@ class meta_access_controller : public access_controller
 {
 public:
     meta_access_controller();
-    bool check(message_ex *msg);
+    bool allowed(message_ex *msg);
 
 private:
     void register_white_list(const std::string &rpc_code);
