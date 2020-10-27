@@ -22,12 +22,25 @@
 
 namespace dsn {
 namespace security {
+DSN_DEFINE_string("security",
+                  rpc_code_white_list,
+                  "",
+                  "white list of rpc codes for meta_access_controller");
+
 meta_access_controller::meta_access_controller()
 {
-    register_white_list("RPC_CM_LIST_APPS");
-    register_white_list("RPC_CM_LIST_NODES");
-    register_white_list("RPC_CM_CLUSTER_INFO");
-    register_white_list("RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX");
+    if (strlen(FLAGS_rpc_code_white_list) == 0) {
+        register_white_list("RPC_CM_LIST_APPS");
+        register_white_list("RPC_CM_LIST_NODES");
+        register_white_list("RPC_CM_CLUSTER_INFO");
+        register_white_list("RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX");
+    } else {
+        std::vector<std::string> white_list_vec;
+        utils::split_args(FLAGS_rpc_code_white_list, white_list_vec, ',');
+        std::unordered_set<std::string> white_list_set(white_list_vec.begin(),
+                                                       white_list_vec.end());
+        _white_list.swap(white_list_set);
+    }
 }
 
 bool meta_access_controller::allowed(message_ex *msg)
