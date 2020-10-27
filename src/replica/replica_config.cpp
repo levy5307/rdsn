@@ -568,6 +568,19 @@ void replica::update_app_envs_internal(const std::map<std::string, std::string> 
     }
 
     update_throttle_envs(envs);
+
+    update_allowed_users(envs);
+}
+
+void replica::update_allowed_users(const std::map<std::string, std::string> &envs)
+{
+    std::string allowed_users;
+    auto iter = envs.find(replica_envs::ALLOWED_USERS);
+    if (iter != envs.end()) {
+        allowed_users = iter->second;
+    }
+
+    _access_controller->reset(allowed_users);
 }
 
 void replica::query_app_envs(/*out*/ std::map<std::string, std::string> &envs)

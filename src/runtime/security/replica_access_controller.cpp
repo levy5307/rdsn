@@ -26,14 +26,23 @@ replica_access_controller::replica_access_controller(const std::string &name) { 
 
 void replica_access_controller::reset(const std::string &users)
 {
+    {
+        // check to see whether we should update it or not.
+        utils::auto_read_lock l(_lock);
+        if (_env_users == users) {
+            return;
+        }
+    }
+
     std::vector<std::string> users_vec;
     utils::split_args(users.c_str(), users_vec, ',');
     std::unordered_set<std::string> users_set(users_vec.begin(), users_vec.end());
 
     {
-        // This swap operation is in constant time
         utils::auto_write_lock l(_lock);
+        // This swap operation is in constant time
         _users.swap(users_set);
+        _env_users = users;
     }
 }
 
