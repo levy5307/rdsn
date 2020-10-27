@@ -24,15 +24,14 @@
 
 namespace dsn {
 namespace security {
-DSN_DECLARE_bool(mandatory_auth);
-DSN_DECLARE_bool(enable_auth);
+DSN_DEFINE_bool("security", enable_access_control, false, "whether enable access control or not");
 DSN_DEFINE_string("security", super_user, "", "super user for access controller");
 
 access_controller::~access_controller() {}
 
 bool access_controller::pre_check(const std::string &user_name)
 {
-    if (!FLAGS_enable_auth || !FLAGS_mandatory_auth || user_name == FLAGS_super_user) {
+    if (!FLAGS_enable_access_control || user_name == FLAGS_super_user) {
         return true;
     }
     return false;
