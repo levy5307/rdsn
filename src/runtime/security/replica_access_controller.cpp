@@ -37,7 +37,7 @@ void replica_access_controller::reset(const std::string &users)
     }
 }
 
-bool replica_access_controller::check(message_ex *msg)
+bool replica_access_controller::allowed(message_ex *msg)
 {
     const std::string &user_name = msg->user_name;
     if (pre_check(user_name)) {
