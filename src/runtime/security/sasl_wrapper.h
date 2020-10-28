@@ -31,6 +31,7 @@ public:
     virtual error_s init() = 0;
     virtual error_s start(const std::string &mechanism, const blob &input, blob &output) = 0;
     virtual error_s step(const blob &input, blob &output) = 0;
+    error_s retrive_user_name(/*out*/ std::string &output);
 
 protected:
     sasl_wrapper() = default;

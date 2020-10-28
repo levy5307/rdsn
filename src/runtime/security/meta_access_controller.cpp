@@ -19,6 +19,7 @@
 
 #include <dsn/tool-api/rpc_message.h>
 #include <dsn/utility/flags.h>
+#include <dsn/tool-api/network.h>
 
 namespace dsn {
 namespace security {
@@ -45,7 +46,7 @@ meta_access_controller::meta_access_controller()
 
 bool meta_access_controller::allowed(message_ex *msg)
 {
-    if (pre_check(msg->user_name) ||
+    if (pre_check(msg->io_session->get_client_username()) ||
         _white_list.find(msg->rpc_code().to_string()) != _white_list.end()) {
         return true;
     }

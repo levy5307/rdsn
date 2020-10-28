@@ -19,6 +19,7 @@
 
 #include <dsn/tool-api/rpc_message.h>
 #include <dsn/dist/fmt_logging.h>
+#include <dsn/tool-api/network.h>
 
 namespace dsn {
 namespace security {
@@ -48,7 +49,7 @@ void replica_access_controller::reset(const std::string &users)
 
 bool replica_access_controller::allowed(message_ex *msg)
 {
-    const std::string &user_name = msg->user_name;
+    const std::string &user_name = msg->io_session->get_client_username();
     if (pre_check(user_name)) {
         return true;
     }
