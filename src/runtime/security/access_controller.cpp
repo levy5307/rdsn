@@ -19,19 +19,28 @@
 
 #include <dsn/utility/flags.h>
 #include <dsn/utility/smart_pointers.h>
+#include <dsn/utility/strings.h>
 #include "meta_access_controller.h"
 #include "replica_access_controller.h"
 
 namespace dsn {
 namespace security {
-DSN_DEFINE_bool("security", enable_access_control, false, "whether enable access control or not");
-DSN_DEFINE_string("security", super_user, "", "super user for access controller");
+DSN_DEFINE_bool("security", enable_acl, false, "whether enable access control or not");
+DSN_DEFINE_string("security", super_users, "", "super user for access controller");
+
+access_controller::access_controller()
+{
+    std::vector<std::string> super_users_vec;
+    utils::split_args(FLAGS_super_users, super_users_vec, ',');
+    std::unordered_set<std::string> super_user_set(super_users_vec.begin(), super_users_vec.end());
+    _super_users.swap(super_user_set);
+}
 
 access_controller::~access_controller() {}
 
 bool access_controller::pre_check(const std::string &user_name)
 {
-    if (!FLAGS_enable_access_control || user_name == FLAGS_super_user) {
+    if (!FLAGS_enable_acl || _super_users.find(user_name) != _super_users.end()) {
         return true;
     }
     return false;

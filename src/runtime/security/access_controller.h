@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include <unordered_map>
 #include <memory>
+#include <unordered_set>
 
 namespace dsn {
 class message_ex;
@@ -27,7 +27,7 @@ namespace security {
 class access_controller
 {
 public:
-    access_controller() = default;
+    access_controller();
     virtual ~access_controller() = 0;
 
     virtual void reset(const std::string &acls){};
@@ -35,6 +35,8 @@ public:
 
 protected:
     bool pre_check(const std::string &user_name);
+
+    std::unordered_set<std::string> _super_users;
 };
 
 std::unique_ptr<access_controller> create_access_controller(bool is_meta, std::string name = "");
