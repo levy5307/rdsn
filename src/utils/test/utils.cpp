@@ -87,21 +87,25 @@ TEST(core, binary_io)
 TEST(core, split_args)
 {
     std::string value = "a ,b, c ";
-    std::vector<std::string> sargs;
-    std::list<std::string> sargs2;
-    ::dsn::utils::split_args(value.c_str(), sargs, ',');
-    ::dsn::utils::split_args(value.c_str(), sargs2, ',');
 
-    EXPECT_EQ(sargs.size(), 3);
-    EXPECT_EQ(sargs[0], "a");
-    EXPECT_EQ(sargs[1], "b");
-    EXPECT_EQ(sargs[2], "c");
+    std::vector<std::string> sargs_vec;
+    dsn::utils::split_args(value.c_str(), sargs_vec, ',');
+    EXPECT_EQ(sargs_vec.size(), 3);
+    EXPECT_EQ(sargs_vec[0], "a");
+    EXPECT_EQ(sargs_vec[1], "b");
+    EXPECT_EQ(sargs_vec[2], "c");
 
-    EXPECT_EQ(sargs2.size(), 3);
-    auto it = sargs2.begin();
+    std::list<std::string> sargs_list;
+    dsn::utils::split_args(value.c_str(), sargs_list, ',');
+    EXPECT_EQ(sargs_list.size(), 3);
+    auto it = sargs_list.begin();
     EXPECT_EQ(*it++, "a");
     EXPECT_EQ(*it++, "b");
     EXPECT_EQ(*it++, "c");
+
+    std::unordered_set<std::string> sargs_set;
+    dsn::utils::split_args(value.c_str(), sargs_set, ',');
+    EXPECT_EQ(sargs_set.size(), 3);
 }
 
 TEST(core, split_args_keep_place_holder)

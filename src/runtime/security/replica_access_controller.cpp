@@ -35,10 +35,8 @@ void replica_access_controller::reset(const std::string &users)
         }
     }
 
-    std::vector<std::string> users_vec;
-    utils::split_args(users.c_str(), users_vec, ',');
-    std::unordered_set<std::string> users_set(users_vec.begin(), users_vec.end());
-
+    std::unordered_set<std::string> users_set;
+    utils::split_args(users.c_str(), users_set, ',');
     {
         utils::auto_write_lock l(_lock);
         // This swap operation is in constant time

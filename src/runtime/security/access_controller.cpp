@@ -25,16 +25,10 @@
 
 namespace dsn {
 namespace security {
-DSN_DEFINE_bool("security", enable_acl, false, "whether enable access control or not");
+DSN_DEFINE_bool("security", enable_acl, false, "whether enable access controller or not");
 DSN_DEFINE_string("security", super_users, "", "super user for access controller");
 
-access_controller::access_controller()
-{
-    std::vector<std::string> super_users_vec;
-    utils::split_args(FLAGS_super_users, super_users_vec, ',');
-    std::unordered_set<std::string> super_user_set(super_users_vec.begin(), super_users_vec.end());
-    _super_users.swap(super_user_set);
-}
+access_controller::access_controller() { utils::split_args(FLAGS_super_users, _super_users, ','); }
 
 access_controller::~access_controller() {}
 

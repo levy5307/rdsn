@@ -36,11 +36,7 @@ meta_access_controller::meta_access_controller()
         register_white_list("RPC_CM_CLUSTER_INFO");
         register_white_list("RPC_CM_QUERY_PARTITION_CONFIG_BY_INDEX");
     } else {
-        std::vector<std::string> white_list_vec;
-        utils::split_args(FLAGS_rpc_code_white_list, white_list_vec, ',');
-        std::unordered_set<std::string> white_list_set(white_list_vec.begin(),
-                                                       white_list_vec.end());
-        _white_list.swap(white_list_set);
+        utils::split_args(FLAGS_rpc_code_white_list, _white_list, ',');
     }
 }
 
