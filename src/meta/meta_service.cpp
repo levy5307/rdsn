@@ -150,8 +150,9 @@ template <typename TRespType>
 bool meta_service::check_status_with_msg(message_ex *req, TRespType &response_struct)
 {
     if (!_access_controller->allowed(req)) {
-        response_struct.err = ERR_ACL_DENY;
         ddebug("reject request with ERR_ACL_DENY");
+        response_struct.err = ERR_ACL_DENY;
+        reply(req, response_struct);
         return false;
     }
 
