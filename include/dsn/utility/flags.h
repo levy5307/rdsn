@@ -9,11 +9,18 @@
 #include <functional>
 #include "errors.h"
 #include "utils.h"
+#include "enum_helper.h"
+#include "output_utils.h"
 
 enum class flag_tag
 {
     FT_MUTABLE = 0, /** flag data is mutable */
+    FV_MAX_INDEX = 0,
 };
+
+ENUM_BEGIN(flag_tag, flag_tag::FV_MAX_INDEX)
+ENUM_REG(flag_tag::FT_MUTABLE)
+ENUM_END(flag_tag)
 
 // Example:
 //    DSN_DEFINE_string("core", filename, "my_file.txt", "The file to read");
@@ -66,6 +73,65 @@ enum class flag_tag
 #define DSN_HAS_TAG(name, tag) has_tag(#name, flag_tag::tag)
 
 namespace dsn {
+enum value_type
+{
+    FV_BOOL = 0,
+    FV_INT32 = 1,
+    FV_UINT32 = 2,
+    FV_INT64 = 3,
+    FV_UINT64 = 4,
+    FV_DOUBLE = 5,
+    FV_STRING = 6,
+    FV_MAX_INDEX = 6,
+};
+
+ENUM_BEGIN(value_type, FV_MAX_INDEX)
+ENUM_REG(FV_BOOL)
+ENUM_REG(FV_INT32)
+ENUM_REG(FV_UINT32)
+ENUM_REG(FV_INT64)
+ENUM_REG(FV_UINT64)
+ENUM_REG(FV_DOUBLE)
+ENUM_REG(FV_STRING)
+ENUM_END(value_type)
+
+using validator_fn = std::function<void()>;
+
+class flag_data
+{
+public:
+    flag_data(const char *section, const char *name, const char *desc, value_type type, void *val);
+
+    void load();
+    error_s update(const char *val);
+
+    void set_validator(validator_fn &validator);
+    const validator_fn &validator() const;
+
+    void add_tag(const flag_tag &tag);
+    bool has_tag(const flag_tag &tag) const;
+
+    string_view to_json() const;
+    /**
+    template <typename T>
+    const T &const_value() const;
+     */
+
+private:
+    template <typename T>
+    T &value() const;
+
+    void append_value(utils::table_printer tp) const;
+    const std::string tags_str() const;
+
+    const value_type _type;
+    void *const _val;
+    const char *_section;
+    const char *_name;
+    const char *_desc;
+    validator_fn _validator;
+    std::unordered_set<flag_tag> _tags;
+};
 
 // An utility class that registers a flag upon initialization.
 class flag_registerer

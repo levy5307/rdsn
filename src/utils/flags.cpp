@@ -15,23 +15,8 @@
 
 namespace dsn {
 
-enum value_type
-{
-    FV_BOOL = 0,
-    FV_INT32 = 1,
-    FV_UINT32 = 2,
-    FV_INT64 = 3,
-    FV_UINT64 = 4,
-    FV_DOUBLE = 5,
-    FV_STRING = 6,
-    FV_MAX_INDEX = 6,
-};
-
 using validator_fn = std::function<void()>;
 
-class flag_data
-{
-public:
 #define FLAG_DATA_LOAD_CASE(type, type_enum, suffix)                                               \
     case type_enum:                                                                                \
         value<type>() = dsn_config_get_value_##suffix(_section, _name, value<type>(), _desc);      \
@@ -53,64 +38,111 @@ public:
     case FV_STRING:                                                                                \
         return error_s::make(ERR_NO_PERMISSION, "string modifications are not supported")
 
-    void load()
-    {
-        switch (_type) {
-            FLAG_DATA_LOAD_CASE(int32_t, FV_INT32, int64);
-            FLAG_DATA_LOAD_CASE(int64_t, FV_INT64, int64);
-            FLAG_DATA_LOAD_CASE(uint32_t, FV_UINT32, uint64);
-            FLAG_DATA_LOAD_CASE(uint64_t, FV_UINT64, uint64);
-            FLAG_DATA_LOAD_CASE(bool, FV_BOOL, bool);
-            FLAG_DATA_LOAD_CASE(double, FV_DOUBLE, double);
-            FLAG_DATA_LOAD_CASE(const char *, FV_STRING, string);
-        }
+flag_data::flag_data(
+    const char *section, const char *name, const char *desc, value_type type, void *val)
+    : _type(type), _val(val), _section(section), _name(name), _desc(desc)
+{
+}
+
+void flag_data::load()
+{
+    switch (_type) {
+        FLAG_DATA_LOAD_CASE(int32_t, FV_INT32, int64);
+        FLAG_DATA_LOAD_CASE(int64_t, FV_INT64, int64);
+        FLAG_DATA_LOAD_CASE(uint32_t, FV_UINT32, uint64);
+        FLAG_DATA_LOAD_CASE(uint64_t, FV_UINT64, uint64);
+        FLAG_DATA_LOAD_CASE(bool, FV_BOOL, bool);
+        FLAG_DATA_LOAD_CASE(double, FV_DOUBLE, double);
+        FLAG_DATA_LOAD_CASE(const char *, FV_STRING, string);
+    }
+}
+
+error_s flag_data::update(const char *val)
+{
+    if (!has_tag(flag_tag::FT_MUTABLE)) {
+        return error_s::make(ERR_NO_PERMISSION, fmt::format("{} is not mutable", _name));
     }
 
-    flag_data(const char *section, const char *name, const char *desc, value_type type, void *val)
-        : _type(type), _val(val), _section(section), _name(name), _desc(desc)
-    {
+    switch (_type) {
+        FLAG_DATA_UPDATE_CASE(int32_t, FV_INT32, int32);
+        FLAG_DATA_UPDATE_CASE(int64_t, FV_INT64, int64);
+        FLAG_DATA_UPDATE_CASE(uint32_t, FV_UINT32, uint32);
+        FLAG_DATA_UPDATE_CASE(uint64_t, FV_UINT64, uint64);
+        FLAG_DATA_UPDATE_CASE(bool, FV_BOOL, bool);
+        FLAG_DATA_UPDATE_CASE(double, FV_DOUBLE, double);
+        FLAG_DATA_UPDATE_STRING();
     }
+    return error_s::make(ERR_OK);
+}
 
-    error_s update(const char *val)
-    {
-        if (!has_tag(flag_tag::FT_MUTABLE)) {
-            return error_s::make(ERR_NO_PERMISSION, fmt::format("{} is not mutable", _name));
-        }
+void flag_data::set_validator(validator_fn &validator) { _validator = std::move(validator); }
 
-        switch (_type) {
-            FLAG_DATA_UPDATE_CASE(int32_t, FV_INT32, int32);
-            FLAG_DATA_UPDATE_CASE(int64_t, FV_INT64, int64);
-            FLAG_DATA_UPDATE_CASE(uint32_t, FV_UINT32, uint32);
-            FLAG_DATA_UPDATE_CASE(uint64_t, FV_UINT64, uint64);
-            FLAG_DATA_UPDATE_CASE(bool, FV_BOOL, bool);
-            FLAG_DATA_UPDATE_CASE(double, FV_DOUBLE, double);
-            FLAG_DATA_UPDATE_STRING();
-        }
-        return error_s::make(ERR_OK);
+const validator_fn &flag_data::validator() const { return _validator; }
+
+void flag_data::add_tag(const flag_tag &tag) { _tags.insert(tag); }
+
+bool flag_data::has_tag(const flag_tag &tag) const { return _tags.find(tag) != _tags.end(); }
+
+string_view flag_data::to_json() const
+{
+    utils::table_printer tp("all_configs");
+    tp.add_row_name_and_data("name", _name);
+    tp.add_row_name_and_data("section", _section);
+    tp.add_row_name_and_data("type", enum_to_string(_type));
+    tp.add_row_name_and_data("tags", tags_str());
+    tp.add_row_name_and_data("description", _desc);
+    append_value(tp);
+
+    std::ostringstream out;
+    tp.output(out, utils::table_printer::output_format::kJsonCompact);
+    return out.str();
+}
+
+template <typename T>
+T &flag_data::value() const
+{
+    return *reinterpret_cast<T *>(_val);
+}
+
+void flag_data::append_value(utils::table_printer tp) const
+{
+    tp.add_row("value");
+    switch (_type) {
+    case FV_BOOL:
+        tp.append_data(value<bool>());
+        break;
+    case FV_INT32:
+        tp.append_data(value<int32_t>());
+        break;
+    case FV_UINT32:
+        tp.append_data(value<uint32_t>());
+        break;
+    case FV_INT64:
+        tp.append_data(value<int64_t>());
+        break;
+    case FV_UINT64:
+        tp.append_data(value<uint64_t>());
+        break;
+    case FV_DOUBLE:
+        tp.append_data(value<double>());
+        break;
+    case FV_STRING:
+        tp.append_data(std::string(value<char *>()));
+        break;
     }
+}
 
-    void set_validator(validator_fn &validator) { _validator = std::move(validator); }
-    const validator_fn &validator() const { return _validator; }
-
-    void add_tag(const flag_tag &tag) { _tags.insert(tag); }
-    bool has_tag(const flag_tag &tag) const { return _tags.find(tag) != _tags.end(); }
-
-private:
-    template <typename T>
-    T &value()
-    {
-        return *reinterpret_cast<T *>(_val);
+const std::string flag_data::tags_str() const
+{
+    std::string tags_str;
+    for (const auto &tag : _tags) {
+        tags_str += enum_to_string(tag);
+        tags_str += ",";
     }
+    tags_str.pop_back();
 
-private:
-    const value_type _type;
-    void *const _val;
-    const char *_section;
-    const char *_name;
-    const char *_desc;
-    validator_fn _validator;
-    std::unordered_set<flag_tag> _tags;
-};
+    return tags_str;
+}
 
 class flag_registry : public utils::singleton<flag_registry>
 {
@@ -204,5 +236,4 @@ flag_tagger::flag_tagger(const char *name, const flag_tag &tag)
 {
     return flag_registry::instance().has_tag(name, tag);
 }
-
 } // namespace dsn
