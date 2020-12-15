@@ -112,6 +112,7 @@ public:
     bool has_tag(const flag_tag &tag) const;
 
     std::string to_json() const;
+    std::string description() const;
 
 private:
     template <typename T>
@@ -162,4 +163,6 @@ extern error_s update_flag(const char *name, const char *val);
 extern error_with<bool> has_tag(const char *name, const flag_tag &tag);
 
 extern std::string list_all_flags();
+
+extern error_with<std::string> get_flag(const std::string &flag_name);
 } // namespace dsn

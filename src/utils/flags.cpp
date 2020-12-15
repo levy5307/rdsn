@@ -80,6 +80,8 @@ void flag_data::add_tag(const flag_tag &tag) { _tags.insert(tag); }
 
 bool flag_data::has_tag(const flag_tag &tag) const { return _tags.find(tag) != _tags.end(); }
 
+std::string flag_data::description() const { return _desc; }
+
 std::string flag_data::to_json() const
 {
     utils::table_printer tp;
@@ -115,7 +117,7 @@ std::string flag_data::to_json() const
         tp.append_data(value<double>());
         break;
     case FV_STRING:
-        tp.append_data(std::string(value<char *>()));
+        tp.append_data(value<const char *>());
         break;
     }
 
@@ -137,7 +139,9 @@ std::string flag_data::tags_str() const
         tags_str += enum_to_string(tag);
         tags_str += ",";
     }
-    tags_str.pop_back();
+    if (!tags_str.empty()) {
+        tags_str.pop_back();
+    }
 
     return tags_str;
 }
@@ -192,14 +196,24 @@ public:
 
     std::string list_all_flags() const
     {
-        utils::table_printer tp("all_flags");
+        utils::table_printer tp;
         for (const auto &flag : _flags) {
-            tp.add_row_name_and_data(flag.first, flag.second.to_json());
+            tp.add_row_name_and_data(flag.first, flag.second.description());
         }
 
         std::ostringstream out;
         tp.output(out, utils::table_printer::output_format::kJsonCompact);
         return out.str();
+    }
+
+    error_with<std::string> get_flag(const std::string &name) const
+    {
+        const auto iter = _flags.find(name);
+        if (iter == _flags.end()) {
+            return error_s::make(ERR_OBJECT_NOT_FOUND, fmt::format("{} is not found", name));
+        }
+
+        return iter->second.to_json();
     }
 
 private:
@@ -248,4 +262,9 @@ flag_tagger::flag_tagger(const char *name, const flag_tag &tag)
 }
 
 /*extern*/ std::string list_all_flags() { return flag_registry::instance().list_all_flags(); }
+
+/*extern*/ error_with<std::string> get_flag(const std::string &flag_name)
+{
+    return flag_registry::instance().get_flag(flag_name);
+}
 } // namespace dsn

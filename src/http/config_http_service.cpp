@@ -45,8 +45,29 @@ void list_all_configs(const http_request &req, http_response &resp)
         return;
     }
 
-    auto res = list_all_flags();
-    resp.body = res;
+    resp.body = list_all_flags();
+    resp.status_code = http_status_code::ok;
+}
+
+void get_config(const http_request &req, http_response &resp)
+{
+    if (req.query_args.size() != 1) {
+        resp.status_code = http_status_code::bad_request;
+        return;
+    }
+
+    auto iter = req.query_args.begin();
+    if (iter->first != "name") {
+        resp.status_code = http_status_code::bad_request;
+        return;
+    }
+
+    auto res = get_flag(iter->second);
+    if (res.is_ok()) {
+        resp.body = res.get_value();
+    } else {
+        resp.body = res.get_error().description();
+    }
     resp.status_code = http_status_code::ok;
 }
 } // namespace dsn
