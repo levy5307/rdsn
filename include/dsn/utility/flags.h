@@ -111,18 +111,13 @@ public:
     void add_tag(const flag_tag &tag);
     bool has_tag(const flag_tag &tag) const;
 
-    string_view to_json() const;
-    /**
-    template <typename T>
-    const T &const_value() const;
-     */
+    std::string to_json() const;
 
 private:
     template <typename T>
     T &value() const;
 
-    void append_value(utils::table_printer tp) const;
-    const std::string tags_str() const;
+    std::string tags_str() const;
 
     const value_type _type;
     void *const _val;
@@ -165,4 +160,6 @@ extern void flags_initialize();
 extern error_s update_flag(const char *name, const char *val);
 
 extern error_with<bool> has_tag(const char *name, const flag_tag &tag);
+
+extern std::string list_all_flags();
 } // namespace dsn

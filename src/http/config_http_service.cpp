@@ -45,32 +45,8 @@ void list_all_configs(const http_request &req, http_response &resp)
         return;
     }
 
-    /**
-    dsn::utils::table_printer tp("all_configs");
-    tp.add_title("name");
-    tp.add_column("section");
-    tp.add_column("type");
-    tp.add_column("value");
-    tp.add_column("tags");
-    tp.add_column("description");
-    for (const auto &flag : all_flags) {
-        tp.append_data(flag.first);
-        tp.append_data(flag.second.section());
-        tp.append_data(flag.second.type());
-        tp.append_data(flag.second.const_value<int>());
-
-        std::string tags_str;
-        const auto &tags = flag.second.tags();
-        for (const auto &tag : tags) {
-            tags_str += tag;
-        }
-        tp.append_data(tags_str);
-    }
-
-    std::ostringstream out;
-    tp.output(out, utils::table_printer::output_format::kJsonCompact);
-    resp.body = out.str();
+    auto res = list_all_flags();
+    resp.body = res;
     resp.status_code = http_status_code::ok;
-    */
 }
 } // namespace dsn

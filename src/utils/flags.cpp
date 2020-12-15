@@ -8,14 +8,11 @@
 #include <dsn/utility/errors.h>
 #include <dsn/utility/string_conv.h>
 #include <dsn/c/api_utilities.h>
-#include <boost/optional/optional.hpp>
 #include <fmt/format.h>
 
 #include <map>
 
 namespace dsn {
-
-using validator_fn = std::function<void()>;
 
 #define FLAG_DATA_LOAD_CASE(type, type_enum, suffix)                                               \
     case type_enum:                                                                                \
@@ -83,30 +80,21 @@ void flag_data::add_tag(const flag_tag &tag) { _tags.insert(tag); }
 
 bool flag_data::has_tag(const flag_tag &tag) const { return _tags.find(tag) != _tags.end(); }
 
-string_view flag_data::to_json() const
+std::string flag_data::to_json() const
 {
-    utils::table_printer tp("all_configs");
-    tp.add_row_name_and_data("name", _name);
-    tp.add_row_name_and_data("section", _section);
-    tp.add_row_name_and_data("type", enum_to_string(_type));
-    tp.add_row_name_and_data("tags", tags_str());
-    tp.add_row_name_and_data("description", _desc);
-    append_value(tp);
+    utils::table_printer tp;
+    tp.add_title("name");
+    tp.add_column("section");
+    tp.add_column("type");
+    tp.add_column("tags");
+    tp.add_column("description");
+    tp.add_column("value");
 
-    std::ostringstream out;
-    tp.output(out, utils::table_printer::output_format::kJsonCompact);
-    return out.str();
-}
-
-template <typename T>
-T &flag_data::value() const
-{
-    return *reinterpret_cast<T *>(_val);
-}
-
-void flag_data::append_value(utils::table_printer tp) const
-{
-    tp.add_row("value");
+    tp.add_row(_name);
+    tp.append_data(_section);
+    tp.append_data(enum_to_string(_type));
+    tp.append_data(tags_str());
+    tp.append_data(_desc);
     switch (_type) {
     case FV_BOOL:
         tp.append_data(value<bool>());
@@ -130,9 +118,19 @@ void flag_data::append_value(utils::table_printer tp) const
         tp.append_data(std::string(value<char *>()));
         break;
     }
+
+    std::ostringstream out;
+    tp.output(out, utils::table_printer::output_format::kJsonCompact);
+    return out.str();
 }
 
-const std::string flag_data::tags_str() const
+template <typename T>
+T &flag_data::value() const
+{
+    return *reinterpret_cast<T *>(_val);
+}
+
+std::string flag_data::tags_str() const
 {
     std::string tags_str;
     for (const auto &tag : _tags) {
@@ -192,6 +190,18 @@ public:
         return it->second.has_tag(tag);
     }
 
+    std::string list_all_flags() const
+    {
+        utils::table_printer tp("all_flags");
+        for (const auto &flag : _flags) {
+            tp.add_row_name_and_data(flag.first, flag.second.to_json());
+        }
+
+        std::ostringstream out;
+        tp.output(out, utils::table_printer::output_format::kJsonCompact);
+        return out.str();
+    }
+
 private:
     friend class utils::singleton<flag_registry>;
     flag_registry() = default;
@@ -236,4 +246,6 @@ flag_tagger::flag_tagger(const char *name, const flag_tag &tag)
 {
     return flag_registry::instance().has_tag(name, tag);
 }
+
+/*extern*/ std::string list_all_flags() { return flag_registry::instance().list_all_flags(); }
 } // namespace dsn
