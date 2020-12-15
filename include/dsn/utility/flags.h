@@ -164,5 +164,5 @@ extern error_with<bool> has_tag(const char *name, const flag_tag &tag);
 
 extern std::string list_all_flags();
 
-extern error_with<std::string> get_flag(const std::string &flag_name);
+extern error_with<const flag_data *> get_flag(const std::string &flag_name);
 } // namespace dsn

@@ -63,7 +63,7 @@ void get_config(const http_request &req, http_response &resp)
 
     auto res = get_flag(config_name);
     if (res.is_ok()) {
-        resp.body = res.get_value();
+        resp.body = res.get_value()->to_json();
     } else {
         resp.body = res.get_error().description();
     }

@@ -104,5 +104,15 @@ TEST(flag_test, tag_flag)
     ASSERT_FALSE(res.is_ok());
     ASSERT_EQ(res.get_error().code(), ERR_OBJECT_NOT_FOUND);
 }
+
+DSN_DEFINE_int32("flag_test", has_flag, 5, "");
+TEST(flag_test, get_flag)
+{
+    auto res = get_flag("has_flag");
+    ASSERT_TRUE(res.is_ok());
+
+    res = get_flag("has_no_flag");
+    ASSERT_FALSE(res.is_ok());
+}
 } // namespace utils
 } // namespace dsn
