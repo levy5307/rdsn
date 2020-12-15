@@ -82,9 +82,5 @@ namespace dsn {
         .with_callback(
             [](const http_request &req, http_response &resp) { list_all_configs(req, resp); })
         .with_help("list all configs");
-
-    register_http_call("getConfig")
-        .with_callback([](const http_request &req, http_response &resp) { get_config(req, resp); })
-        .with_help("get the value of a config");
 }
 } // namespace dsn

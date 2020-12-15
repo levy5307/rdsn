@@ -206,16 +206,6 @@ public:
         return out.str();
     }
 
-    error_with<std::string> get_flag(const std::string &name) const
-    {
-        const auto iter = _flags.find(name);
-        if (iter == _flags.end()) {
-            return error_s::make(ERR_OBJECT_NOT_FOUND, fmt::format("{} is not found", name));
-        }
-
-        return iter->second.to_json();
-    }
-
 private:
     friend class utils::singleton<flag_registry>;
     flag_registry() = default;
@@ -262,9 +252,4 @@ flag_tagger::flag_tagger(const char *name, const flag_tag &tag)
 }
 
 /*extern*/ std::string list_all_flags() { return flag_registry::instance().list_all_flags(); }
-
-/*extern*/ error_with<std::string> get_flag(const std::string &flag_name)
-{
-    return flag_registry::instance().get_flag(flag_name);
-}
 } // namespace dsn
