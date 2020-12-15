@@ -51,18 +51,17 @@ void list_all_configs(const http_request &req, http_response &resp)
 
 void get_config(const http_request &req, http_response &resp)
 {
-    if (req.query_args.size() != 1) {
-        resp.status_code = http_status_code::bad_request;
-        return;
+    std::string config_name;
+    for (const auto &p : req.query_args) {
+        if ("name" == p.first) {
+            config_name = p.second;
+        } else {
+            resp.status_code = http_status_code::bad_request;
+            return;
+        }
     }
 
-    auto iter = req.query_args.begin();
-    if (iter->first != "name") {
-        resp.status_code = http_status_code::bad_request;
-        return;
-    }
-
-    auto res = get_flag(iter->second);
+    auto res = get_flag(config_name);
     if (res.is_ok()) {
         resp.body = res.get_value();
     } else {
