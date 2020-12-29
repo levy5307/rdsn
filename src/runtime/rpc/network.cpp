@@ -339,6 +339,15 @@ void rpc_session::on_send_completed(uint64_t signature)
         this->send(sig);
 }
 
+static std::map<rpc_session_context_code, context_creator> context_creators;
+bool register_context_creator(rpc_session_context_code context_code, context_creator creator) {
+    if (context_creators.find(context_code) != context_creators.end()) {
+        return false;
+    }
+    context_creators[context_code] = creator;
+    return true;
+}
+
 rpc_session::rpc_session(connection_oriented_network &net,
                          ::dsn::rpc_address remote_addr,
                          message_parser_ptr &parser,
@@ -359,6 +368,11 @@ rpc_session::rpc_session(connection_oriented_network &net,
 {
     if (!is_client) {
         on_rpc_session_connected.execute(this);
+    }
+
+    // run the context creator to get all of these contexts
+    for (auto iter : context_creators) {
+        _contexts[iter.first] = iter.second();
     }
 }
 

@@ -196,6 +196,13 @@ namespace security {
 class negotiation;
 }
 
+enum class rpc_session_context_code {
+    RSCC_NEGOTIATION = 0,
+};
+
+using context_creator = std::function<void *()>;
+bool register_context_creator(rpc_session_context_code context_code, context_creator creator);
+
 class rpc_client_matcher;
 class rpc_session : public ref_counter
 {
@@ -331,6 +338,8 @@ private:
     rpc_client_matcher *_matcher;
 
     std::atomic_int _delay_server_receive_ms;
+
+    std::map<rpc_session_context_code, void*> _contexts;
 
     // _client_username is only valid if it is a server rpc_session.
     // it represents the name of the corresponding client
