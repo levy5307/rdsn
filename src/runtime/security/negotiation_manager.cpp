@@ -27,6 +27,7 @@
 
 namespace dsn {
 namespace security {
+DSN_DECLARE_bool(enable_auth);
 DSN_DECLARE_bool(mandatory_auth);
 
 inline bool is_negotiation_message(dsn::task_code code)
