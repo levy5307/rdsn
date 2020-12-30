@@ -30,6 +30,19 @@ namespace security {
 DSN_DECLARE_bool(mandatory_auth);
 extern const std::set<std::string> supported_mechanisms;
 
+void on_negotiation_response(error_code err, negotiation_rpc rpc)
+{
+    auto session = rpc.dsn_request()->io_session;
+    dassert(session->is_client(),
+            "only client session receives negotiation response");
+
+    auto nego = get_negotiation(session);
+    if (dsn_likely(nullptr != nego)) {
+        auto cli_negotiation = static_cast<client_negotiation *>(nego);
+        cli_negotiation->handle_response(err, std::move(rpc.response()));
+    }
+}
+
 client_negotiation::client_negotiation(rpc_session_ptr session) : negotiation(session)
 {
     _name = fmt::format("CLIENT_NEGOTIATION(SERVER={})", _session->remote_address().to_string());
@@ -189,7 +202,7 @@ void client_negotiation::send(negotiation_status::type status, const blob &msg)
 
     negotiation_rpc rpc(std::move(req), RPC_NEGOTIATION);
     rpc.call(_session->remote_address(), nullptr, [rpc](error_code err) mutable {
-        negotiation_manager::on_negotiation_response(err, rpc);
+        on_negotiation_response(err, rpc);
     });
 }
 
@@ -199,5 +212,6 @@ void client_negotiation::succ_negotiation()
     _session->set_negotiation_succeed();
     ddebug_f("{}: negotiation succeed", _name);
 }
+
 } // namespace security
 } // namespace dsn

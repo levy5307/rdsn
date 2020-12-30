@@ -41,7 +41,7 @@ public:
     virtual ~negotiation() = 0;
 
     virtual void start() = 0;
-    bool negotiation_succeed() const { return _status == negotiation_status::type::SASL_SUCC; }
+    bool succeed() const { return _status == negotiation_status::type::SASL_SUCC; }
     void fail_negotiation();
     // check whether the status is equal to expected_status
     // ret value:
@@ -57,6 +57,6 @@ protected:
     std::unique_ptr<sasl_wrapper> _sasl;
 };
 
-std::unique_ptr<negotiation> create_negotiation(bool is_client, rpc_session *session);
+negotiation* create_negotiation(rpc_session *session);
 } // namespace security
 } // namespace dsn

@@ -162,8 +162,7 @@ void server_negotiation::succ_negotiation(negotiation_rpc rpc, const std::string
 {
     negotiation_response &response = rpc.response();
     _status = response.status = negotiation_status::type::SASL_SUCC;
-    _session->set_client_username(user_name);
-    _session->set_negotiation_succeed();
+    _client_name = user_name;
     ddebug_f("{}: negotiation succeed", _name);
 }
 } // namespace security

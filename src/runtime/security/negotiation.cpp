@@ -36,12 +36,12 @@ DSN_TAG_VARIABLE(mandatory_auth, FT_MUTABLE);
 
 negotiation::~negotiation() {}
 
-std::unique_ptr<negotiation> create_negotiation(bool is_client, rpc_session *session)
+negotiation* create_negotiation(rpc_session *session)
 {
-    if (is_client) {
-        return make_unique<client_negotiation>(session);
+    if (session->is_client()) {
+        return new client_negotiation(session);
     } else {
-        return make_unique<server_negotiation>(session);
+        return new server_negotiation(session);
     }
 }
 

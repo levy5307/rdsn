@@ -18,7 +18,6 @@
 #include "negotiation_manager.h"
 #include "negotiation_utils.h"
 #include "server_negotiation.h"
-#include "client_negotiation.h"
 
 #include <dsn/utility/flags.h>
 #include <dsn/tool-api/zlocks.h>
@@ -43,8 +42,58 @@ inline bool in_white_list(task_code code)
            is_http_message(code);
 }
 
-/*static*/ negotiation_map negotiation_manager::_negotiations;
-/*static*/ utils::rw_lock_nr negotiation_manager::_lock;
+negotiation* get_negotiation(rpc_session *session) {
+    return static_cast<negotiation *>(
+            session->get_context(rpc_session_context_code::NEGOTIATION));
+}
+
+bool on_rpc_recv_msg(message_ex *msg)
+{
+    if (!msg->io_session->is_client() && !FLAGS_mandatory_auth) {
+        // if this is server_session and mandatory_auth is turned off.
+        return true;
+    }
+    if (in_white_list(msg->rpc_code())) {
+        return true;
+    }
+
+    return get_negotiation(msg->io_session)->succeed();
+}
+
+bool on_rpc_send_msg(message_ex *msg)
+{
+    if (!msg->io_session->is_client() && !FLAGS_mandatory_auth) {
+        // if this is server_session and mandatory_auth is turned off.
+        return true;
+    }
+    if (in_white_list(msg->rpc_code())) {
+        return true;
+    }
+
+    // if try_pend_message return true, it means the msg is pended to the resend message queue
+    return !msg->io_session->try_pend_message(msg);
+}
+
+void on_rpc_session_created(rpc_session *session) {
+    negotiation *nego = create_negotiation(session);
+    session->set_context(rpc_session_context_code::NEGOTIATION, static_cast<void*>(nego));
+}
+
+void on_rpc_session_destroyed(rpc_session *session) {
+    negotiation *nego = get_negotiation(session);
+    if (dsn_likely(nego != nullptr)) {
+        delete nego;
+        session->delete_context(rpc_session_context_code::NEGOTIATION);
+    }
+}
+
+void init_join_point()
+{
+    rpc_session::on_rpc_session_created.put_back(on_rpc_session_created, "security");
+    rpc_session::on_rpc_session_destroyed.put_back(on_rpc_session_destroyed, "security");
+    rpc_session::on_rpc_recv_message.put_native(on_rpc_recv_msg);
+    rpc_session::on_rpc_send_message.put_native(on_rpc_send_msg);
+}
 
 negotiation_manager::negotiation_manager() : serverlet("negotiation_manager") {}
 
@@ -56,8 +105,8 @@ void negotiation_manager::open_service()
 
 void negotiation_manager::on_negotiation_request(negotiation_rpc rpc)
 {
-    dassert(!rpc.dsn_request()->io_session->is_client(),
-            "only server session receives negotiation request");
+    auto session = rpc.dsn_request()->io_session;
+    dassert(!session->is_client(), "only server session receives negotiation request");
 
     // reply SASL_AUTH_DISABLE if auth is not enable
     if (!security::FLAGS_enable_auth) {
@@ -65,77 +114,10 @@ void negotiation_manager::on_negotiation_request(negotiation_rpc rpc)
         return;
     }
 
-    std::shared_ptr<negotiation> nego = get_negotiation(rpc);
-    if (nullptr != nego) {
-        auto srv_negotiation = static_cast<server_negotiation *>(nego.get());
-        srv_negotiation->handle_request(rpc);
-    }
+    auto srv_negotiation = static_cast<server_negotiation *>(
+            session->get_context(rpc_session_context_code::NEGOTIATION));
+    srv_negotiation->handle_request(rpc);
 }
 
-void negotiation_manager::on_negotiation_response(error_code err, negotiation_rpc rpc)
-{
-    dassert(rpc.dsn_request()->io_session->is_client(),
-            "only client session receives negotiation response");
-
-    std::shared_ptr<negotiation> nego = get_negotiation(rpc);
-    if (nullptr != nego) {
-        auto cli_negotiation = static_cast<client_negotiation *>(nego.get());
-        cli_negotiation->handle_response(err, std::move(rpc.response()));
-    }
-}
-
-void negotiation_manager::on_rpc_connected(rpc_session *session)
-{
-    std::shared_ptr<negotiation> nego = security::create_negotiation(session->is_client(), session);
-    nego->start();
-    {
-        utils::auto_write_lock l(_lock);
-        _negotiations[session] = std::move(nego);
-    }
-}
-
-void negotiation_manager::on_rpc_disconnected(rpc_session *session)
-{
-    {
-        utils::auto_write_lock l(_lock);
-        _negotiations.erase(session);
-    }
-}
-
-bool negotiation_manager::on_rpc_recv_msg(message_ex *msg)
-{
-    return !FLAGS_mandatory_auth || in_white_list(msg->rpc_code()) ||
-           msg->io_session->is_negotiation_succeed();
-}
-
-bool negotiation_manager::on_rpc_send_msg(message_ex *msg)
-{
-    // if try_pend_message return true, it means the msg is pended to the resend message queue
-    return in_white_list(msg->rpc_code()) || !msg->io_session->try_pend_message(msg);
-}
-
-std::shared_ptr<negotiation> negotiation_manager::get_negotiation(negotiation_rpc rpc)
-{
-    utils::auto_read_lock l(_lock);
-    auto it = _negotiations.find(rpc.dsn_request()->io_session);
-    if (it == _negotiations.end()) {
-        ddebug_f("negotiation was removed for msg: {}, {}",
-                 rpc.dsn_request()->rpc_code().to_string(),
-                 rpc.remote_address().to_string());
-        return nullptr;
-    }
-
-    return it->second;
-}
-
-void init_join_point()
-{
-    rpc_session::on_rpc_session_connected.put_back(negotiation_manager::on_rpc_connected,
-                                                   "security");
-    rpc_session::on_rpc_session_disconnected.put_back(negotiation_manager::on_rpc_disconnected,
-                                                      "security");
-    rpc_session::on_rpc_recv_message.put_native(negotiation_manager::on_rpc_recv_msg);
-    rpc_session::on_rpc_send_message.put_native(negotiation_manager::on_rpc_send_msg);
-}
 } // namespace security
 } // namespace dsn

@@ -197,11 +197,8 @@ class negotiation;
 }
 
 enum class rpc_session_context_code {
-    RSCC_NEGOTIATION = 0,
+    NEGOTIATION = 0,
 };
-
-using context_creator = std::function<void *()>;
-bool register_context_creator(rpc_session_context_code context_code, context_creator creator);
 
 class rpc_client_matcher;
 class rpc_session : public ref_counter
@@ -211,8 +208,10 @@ public:
     @addtogroup tool-api-hooks
     @{
     */
+    static join_point<void, rpc_session *> on_rpc_session_created;
     static join_point<void, rpc_session *> on_rpc_session_connected;
     static join_point<void, rpc_session *> on_rpc_session_disconnected;
+    static join_point<void, rpc_session *> on_rpc_session_destroyed;
     static join_point<bool, message_ex *> on_rpc_recv_message;
     static join_point<bool, message_ex *> on_rpc_send_message;
     /*@}*/
@@ -253,6 +252,10 @@ public:
 
     void set_client_username(const std::string &user_name);
     const std::string &get_client_username() const;
+
+    void set_context(rpc_session_context_code context_code, void* context);
+    void* get_context(rpc_session_context_code context_code);
+    void delete_context(rpc_session_context_code context_code);
 
 public:
     ///

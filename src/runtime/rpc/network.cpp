@@ -34,9 +34,13 @@
 
 namespace dsn {
 /*static*/ join_point<void, rpc_session *>
+    rpc_session::on_rpc_session_created("rpc.session.created");
+/*static*/ join_point<void, rpc_session *>
     rpc_session::on_rpc_session_connected("rpc.session.connected");
 /*static*/ join_point<void, rpc_session *>
     rpc_session::on_rpc_session_disconnected("rpc.session.disconnected");
+/*static*/ join_point<void, rpc_session *>
+    rpc_session::on_rpc_session_destroyed("rpc.session.destroyed");
 /*static*/ join_point<bool, message_ex *>
     rpc_session::on_rpc_recv_message("rpc.session.recv.message");
 /*static*/ join_point<bool, message_ex *>
@@ -52,6 +56,7 @@ rpc_session::~rpc_session()
         dassert(0 == _sending_msgs.size(), "sending queue is not cleared yet");
         dassert(0 == _message_count, "sending queue is not cleared yet");
     }
+    on_rpc_session_destroyed.execute(this);
 }
 
 bool rpc_session::set_connecting()
@@ -339,15 +344,6 @@ void rpc_session::on_send_completed(uint64_t signature)
         this->send(sig);
 }
 
-static std::map<rpc_session_context_code, context_creator> context_creators;
-bool register_context_creator(rpc_session_context_code context_code, context_creator creator) {
-    if (context_creators.find(context_code) != context_creators.end()) {
-        return false;
-    }
-    context_creators[context_code] = creator;
-    return true;
-}
-
 rpc_session::rpc_session(connection_oriented_network &net,
                          ::dsn::rpc_address remote_addr,
                          message_parser_ptr &parser,
@@ -366,13 +362,9 @@ rpc_session::rpc_session(connection_oriented_network &net,
       _matcher(_net.engine()->matcher()),
       _delay_server_receive_ms(0)
 {
+    on_rpc_session_created.execute(this);
     if (!is_client) {
         on_rpc_session_connected.execute(this);
-    }
-
-    // run the context creator to get all of these contexts
-    for (auto iter : context_creators) {
-        _contexts[iter.first] = iter.second();
     }
 }
 
@@ -515,6 +507,22 @@ void rpc_session::set_client_username(const std::string &user_name)
 }
 
 const std::string &rpc_session::get_client_username() const { return _client_username; }
+
+void rpc_session::set_context(rpc_session_context_code context_code, void* context) {
+    _contexts[context_code] = context;
+}
+
+void* rpc_session::get_context(rpc_session_context_code context_code) {
+    auto iter = _contexts.find(context_code);
+    if (iter != _contexts.end()) {
+        return iter->second;
+    }
+    return nullptr;
+}
+
+void rpc_session::delete_context(rpc_session_context_code context_code) {
+    _contexts.erase(context_code);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 network::network(rpc_engine *srv, network *inner_provider)
