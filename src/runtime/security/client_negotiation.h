@@ -26,7 +26,8 @@ namespace security {
 class client_negotiation : public negotiation
 {
 public:
-    explicit client_negotiation(rpc_session_ptr session);
+    explicit client_negotiation(rpc_session* session);
+    ~client_negotiation();
 
     void start() override;
     void handle_response(error_code err, const negotiation_response &&response);

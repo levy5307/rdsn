@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "runtime/security/negotiation_manager.h"
+#include "runtime/security/negotiation_service.h"
 #include "runtime/security/negotiation_utils.h"
 #include "runtime/rpc/network.sim.h"
 
@@ -58,17 +58,17 @@ public:
 
     void on_negotiation_request(negotiation_rpc rpc)
     {
-        negotiation_manager::instance().on_negotiation_request(rpc);
+        negotiation_service::instance().on_negotiation_request(rpc);
     }
 
     bool on_rpc_recv_msg(message_ex *msg)
     {
-        return negotiation_manager::instance().on_rpc_recv_msg(msg);
+        return negotiation_service::instance().on_rpc_recv_msg(msg);
     }
 
     bool on_rpc_send_msg(message_ex *msg)
     {
-        return negotiation_manager::instance().on_rpc_send_msg(msg);
+        return negotiation_service::instance().on_rpc_send_msg(msg);
     }
 };
 

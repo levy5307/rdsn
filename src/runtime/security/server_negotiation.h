@@ -29,7 +29,7 @@ extern const std::set<std::string> supported_mechanisms;
 class server_negotiation : public negotiation
 {
 public:
-    explicit server_negotiation(rpc_session_ptr session);
+    explicit server_negotiation(rpc_session* session);
 
     void start() override;
 

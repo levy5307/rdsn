@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "negotiation_manager.h"
+#include "negotiation_service.h"
 #include "negotiation_utils.h"
 #include "server_negotiation.h"
 
@@ -71,7 +71,7 @@ bool on_rpc_send_msg(message_ex *msg)
     }
 
     // if try_pend_message return true, it means the msg is pended to the resend message queue
-    return !msg->io_session->try_pend_message(msg);
+    return !get_negotiation(msg->io_session)->try_pend_message(msg);
 }
 
 void on_rpc_session_created(rpc_session *session) {
@@ -79,31 +79,35 @@ void on_rpc_session_created(rpc_session *session) {
     session->set_context(rpc_session_context_code::NEGOTIATION, static_cast<void*>(nego));
 }
 
+void on_rpc_session_connected(rpc_session *session) {
+    negotiation *nego = get_negotiation(session);
+    nego->start();
+}
+
 void on_rpc_session_destroyed(rpc_session *session) {
     negotiation *nego = get_negotiation(session);
-    if (dsn_likely(nego != nullptr)) {
-        delete nego;
-        session->delete_context(rpc_session_context_code::NEGOTIATION);
-    }
+    delete nego;
+    session->delete_context(rpc_session_context_code::NEGOTIATION);
 }
 
 void init_join_point()
 {
     rpc_session::on_rpc_session_created.put_back(on_rpc_session_created, "security");
+    rpc_session::on_rpc_session_connected.put_back(on_rpc_session_connected, "security");
     rpc_session::on_rpc_session_destroyed.put_back(on_rpc_session_destroyed, "security");
     rpc_session::on_rpc_recv_message.put_native(on_rpc_recv_msg);
     rpc_session::on_rpc_send_message.put_native(on_rpc_send_msg);
 }
 
-negotiation_manager::negotiation_manager() : serverlet("negotiation_manager") {}
+negotiation_service::negotiation_service() : serverlet("negotiation_service") {}
 
-void negotiation_manager::open_service()
+void negotiation_service::open_service()
 {
     register_rpc_handler_with_rpc_holder(
-        RPC_NEGOTIATION, "Negotiation", &negotiation_manager::on_negotiation_request);
+        RPC_NEGOTIATION, "Negotiation", &negotiation_service::on_negotiation_request);
 }
 
-void negotiation_manager::on_negotiation_request(negotiation_rpc rpc)
+void negotiation_service::on_negotiation_request(negotiation_rpc rpc)
 {
     auto session = rpc.dsn_request()->io_session;
     dassert(!session->is_client(), "only server session receives negotiation request");

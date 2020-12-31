@@ -446,73 +446,13 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
     return true;
 }
 
-bool rpc_session::try_pend_message(message_ex *msg)
-{
-    // if negotiation is not succeed, we should pend msg,
-    // in order to resend it when the negotiation is succeed
-    if (dsn_unlikely(!negotiation_succeed)) {
-        utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        if (!negotiation_succeed) {
-            msg->add_ref();
-            _pending_messages.push_back(msg);
-            return true;
-        }
-    }
-    return false;
-}
-
-void rpc_session::clear_pending_messages()
-{
-    utils::auto_lock<utils::ex_lock_nr> l(_lock);
-    for (auto msg : _pending_messages) {
-        msg->release_ref();
-    }
-    _pending_messages.clear();
-}
-
-void rpc_session::set_negotiation_succeed()
-{
-    std::vector<message_ex *> swapped_pending_msgs;
-    {
-        utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        negotiation_succeed = true;
-
-        _pending_messages.swap(swapped_pending_msgs);
-    }
-
-    // resend the pending messages
-    for (auto msg : swapped_pending_msgs) {
-        send_message(msg);
-        msg->release_ref();
-    }
-}
-
-bool rpc_session::is_negotiation_succeed() const
-{
-    // double check. the first one don't lock the _lock.
-    // Because negotiation_succeed only transfered from false to true.
-    // So if it is true now, it will not change in the later.
-    // But if it is false now, maybe it will change soon. So we should use lock to protect it.
-    if (dsn_likely(negotiation_succeed)) {
-        return negotiation_succeed;
-    } else {
-        utils::auto_lock<utils::ex_lock_nr> l(_lock);
-        return negotiation_succeed;
-    }
-}
-
-void rpc_session::set_client_username(const std::string &user_name)
-{
-    _client_username = user_name;
-}
-
-const std::string &rpc_session::get_client_username() const { return _client_username; }
-
 void rpc_session::set_context(rpc_session_context_code context_code, void* context) {
+    utils::auto_lock<utils::ex_lock_nr> l(_lock);
     _contexts[context_code] = context;
 }
 
 void* rpc_session::get_context(rpc_session_context_code context_code) {
+    utils::auto_lock<utils::ex_lock_nr> l(_lock);
     auto iter = _contexts.find(context_code);
     if (iter != _contexts.end()) {
         return iter->second;
@@ -521,6 +461,7 @@ void* rpc_session::get_context(rpc_session_context_code context_code) {
 }
 
 void rpc_session::delete_context(rpc_session_context_code context_code) {
+    utils::auto_lock<utils::ex_lock_nr> l(_lock);
     _contexts.erase(context_code);
 }
 

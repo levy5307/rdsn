@@ -29,7 +29,7 @@ namespace security {
 DSN_DECLARE_string(service_fqdn);
 DSN_DECLARE_string(service_name);
 
-server_negotiation::server_negotiation(rpc_session_ptr session) : negotiation(session)
+server_negotiation::server_negotiation(rpc_session* session) : negotiation(session)
 {
     _name = fmt::format("SERVER_NEGOTIATION(CLIENT={})", _session->remote_address().to_string());
 }
@@ -160,8 +160,8 @@ void server_negotiation::do_challenge(negotiation_rpc rpc, error_s err_s, const 
 
 void server_negotiation::succ_negotiation(negotiation_rpc rpc, const std::string &user_name)
 {
-    negotiation_response &response = rpc.response();
-    _status = response.status = negotiation_status::type::SASL_SUCC;
+    rpc.response().status = negotiation_status::type::SASL_SUCC;
+    set_succeed();
     _client_name = user_name;
     ddebug_f("{}: negotiation succeed", _name);
 }

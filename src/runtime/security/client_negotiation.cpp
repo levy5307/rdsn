@@ -17,7 +17,7 @@
 
 #include "client_negotiation.h"
 #include "negotiation_utils.h"
-#include "negotiation_manager.h"
+#include "negotiation_service.h"
 
 #include <boost/algorithm/string/join.hpp>
 #include <dsn/dist/fmt_logging.h>
@@ -32,8 +32,7 @@ extern const std::set<std::string> supported_mechanisms;
 void on_negotiation_response(error_code err, negotiation_rpc rpc)
 {
     auto session = rpc.dsn_request()->io_session;
-    dassert(session->is_client(),
-            "only client session receives negotiation response");
+    dassert(session->is_client(), "only client session receives negotiation response");
 
     auto nego = get_negotiation(session);
     if (dsn_likely(nullptr != nego)) {
@@ -42,10 +41,12 @@ void on_negotiation_response(error_code err, negotiation_rpc rpc)
     }
 }
 
-client_negotiation::client_negotiation(rpc_session_ptr session) : negotiation(session)
+client_negotiation::client_negotiation(rpc_session* session) : negotiation(session)
 {
     _name = fmt::format("CLIENT_NEGOTIATION(SERVER={})", _session->remote_address().to_string());
 }
+
+client_negotiation::~client_negotiation() { }
 
 void client_negotiation::start()
 {
@@ -207,10 +208,8 @@ void client_negotiation::send(negotiation_status::type status, const blob &msg)
 
 void client_negotiation::succ_negotiation()
 {
-    _status = negotiation_status::type::SASL_SUCC;
-    _session->set_negotiation_succeed();
+    set_succeed();
     ddebug_f("{}: negotiation succeed", _name);
 }
-
 } // namespace security
 } // namespace dsn

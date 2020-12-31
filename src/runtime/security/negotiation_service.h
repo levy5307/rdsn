@@ -26,17 +26,17 @@ namespace security {
 
 negotiation* get_negotiation(rpc_session *session);
 
-class negotiation_manager : public serverlet<negotiation_manager>,
-                            public utils::singleton<negotiation_manager>
+class negotiation_service : public serverlet<negotiation_service>,
+                            public utils::singleton<negotiation_service>
 {
 public:
     void open_service();
 
 private:
-    negotiation_manager();
+    negotiation_service();
     void on_negotiation_request(negotiation_rpc rpc);
 
-    friend class utils::singleton<negotiation_manager>;
+    friend class utils::singleton<negotiation_service>;
     friend class negotiation_manager_test;
 };
 

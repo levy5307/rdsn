@@ -32,8 +32,8 @@ typedef rpc_holder<negotiation_request, negotiation_response> negotiation_rpc;
 class negotiation
 {
 public:
-    explicit negotiation(rpc_session_ptr session)
-        : _session(std::move(session)), _status(negotiation_status::type::INVALID)
+    explicit negotiation(rpc_session* session)
+        : _session(session), _status(negotiation_status::type::INVALID)
     {
         _sasl = create_sasl_wrapper(_session->is_client());
     }
@@ -49,12 +49,30 @@ public:
     //   false: status != expected_status
     bool check_status(negotiation_status::type status, negotiation_status::type expected_status);
 
+    /// ret value:
+    ///    true  - pend succeed
+    ///    false - pend failed
+    bool try_pend_message(message_ex *msg);
+
 protected:
-    rpc_session_ptr _session;
+    void set_succeed();
+
+    rpc_session* _session;
     std::string _name;
     negotiation_status::type _status;
     std::string _selected_mechanism;
     std::unique_ptr<sasl_wrapper> _sasl;
+
+private:
+    void clear_pending_messages();
+
+    mutable utils::ex_lock_nr _lock; // [
+    // when the negotiation doesn't succeed,
+    // all messages are queued in _pending_messages.
+    // all of them will be resend when it succeed
+    std::vector<message_ex *> _pending_messages;
+    // ]
+
 };
 
 negotiation* create_negotiation(rpc_session *session);
