@@ -192,10 +192,6 @@ protected:
   session managements (both client and server types)
 */
 
-namespace security {
-class negotiation;
-}
-
 enum class rpc_session_context_code {
     NEGOTIATION = 0,
 };
@@ -242,7 +238,6 @@ public:
 
     void set_context(rpc_session_context_code context_code, void* context);
     void* get_context(rpc_session_context_code context_code);
-    void delete_context(rpc_session_context_code context_code);
 
 public:
     ///
@@ -294,8 +289,6 @@ protected:
     std::vector<message_parser::send_buf> _sending_buffers;
 
     uint64_t _message_sent;
-
-    std::map<rpc_session_context_code, void*> _contexts;
     // ]
 
 protected:
@@ -324,6 +317,7 @@ private:
     rpc_client_matcher *_matcher;
 
     std::atomic_int _delay_server_receive_ms;
+    std::map<rpc_session_context_code, void*> _contexts;
 };
 
 // --------- inline implementation --------------

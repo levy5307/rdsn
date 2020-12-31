@@ -46,7 +46,7 @@ client_negotiation::client_negotiation(rpc_session* session) : negotiation(sessi
     _name = fmt::format("CLIENT_NEGOTIATION(SERVER={})", _session->remote_address().to_string());
 }
 
-client_negotiation::~client_negotiation() { }
+client_negotiation::~client_negotiation() {}
 
 void client_negotiation::start()
 {

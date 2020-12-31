@@ -48,7 +48,6 @@ namespace dsn {
 
 rpc_session::~rpc_session()
 {
-    clear_pending_messages();
     clear_send_queue(false);
 
     {
@@ -447,22 +446,15 @@ bool rpc_session::on_recv_message(message_ex *msg, int delay_ms)
 }
 
 void rpc_session::set_context(rpc_session_context_code context_code, void* context) {
-    utils::auto_lock<utils::ex_lock_nr> l(_lock);
     _contexts[context_code] = context;
 }
 
 void* rpc_session::get_context(rpc_session_context_code context_code) {
-    utils::auto_lock<utils::ex_lock_nr> l(_lock);
     auto iter = _contexts.find(context_code);
     if (iter != _contexts.end()) {
         return iter->second;
     }
     return nullptr;
-}
-
-void rpc_session::delete_context(rpc_session_context_code context_code) {
-    utils::auto_lock<utils::ex_lock_nr> l(_lock);
-    _contexts.erase(context_code);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
