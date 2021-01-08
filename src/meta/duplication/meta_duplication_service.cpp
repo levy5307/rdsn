@@ -34,6 +34,7 @@
 
 namespace dsn {
 namespace replication {
+DSN_DECLARE_string(cluster_name);
 
 using namespace literals::chrono_literals;
 
@@ -144,7 +145,7 @@ void meta_duplication_service::add_duplication(duplication_add_rpc rpc)
 
     response.err = ERR_OK;
 
-    if (request.remote_cluster_name == get_current_cluster_name()) {
+    if (request.remote_cluster_name.compare(FLAGS_cluster_name) == 0) {
         response.err = ERR_INVALID_PARAMETERS;
         response.__set_hint("illegal operation: adding duplication to itself");
         return;
