@@ -1040,5 +1040,71 @@ bool greedy_load_balancer::is_ignored_app(app_id app_id)
     return _balancer_ignored_apps.find(app_id) != _balancer_ignored_apps.end();
 }
 
+// ----------------------------------------------
+// TODO(heyuchen): implement cluster load balance
+// ----------------------------------------------
+void greedy_load_balancer::total_replica_balance(meta_view view, migration_list &list)
+{
+    list.clear();
+    // calculate cluster balance info
+    // if not balance:
+    // - calculate next migration
+    // - apply migration
+}
+
+// get cluster info
+bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view, /*out*/ ClusterMigrationInfo &cluster_info)
+{
+    const node_mapper nodes = *(view.nodes);
+    const app_mapper apps = *(view.apps);
+    if(nodes.size() < 3){
+        return false;
+    }
+    for (const auto &kv : nodes) {
+        if (!all_replica_infos_collected(kv.second)) {
+            return false;
+        }
+    }
+    for (const auto &kv : apps) {
+        const std::shared_ptr<app_state> &app = kv.second;
+        // TODO(heyuchen): check other situations should not balance
+        if (is_ignored_app(kv.first) || app->is_bulk_loading || app->splitting()) {
+            return false;
+        }
+    }
+
+    cluster_info.type = kTotal;
+    std::unordered_map<int32_t, std::unordered_map<rpc_address, int32_t>> apps_count;
+    std::unordered_map<int32_t, std::string> apps_name;
+    for(const auto &kv : nodes){
+        node_state ns = kv.second;
+        cluster_info.replicas_count[ns.addr()] = get_count(ns, kTotal, -1);
+        for(const auto &it : apps){
+            auto app_id = it.first;
+            auto count = get_count(ns, kTotal, app_id);
+            auto iter = apps_count.find(app_id);
+            if(iter == apps_count.end()){
+                apps_name[app_id] = it.second->app_name;
+                std::unordered_map<rpc_address, int32_t> app_node_count;
+                app_node_count[ns.addr()] = count;
+                apps_count[app_id] = app_node_count;
+            }else{
+                (iter->second)[ns.addr()] = count;
+            }
+        }
+    }
+
+    for(const auto &kv : apps_count){
+        auto app_id = kv.first;
+        AppMigrationInfo ainfo;
+        ainfo.app_id = app_id;
+        ainfo.app_name = apps_name[app_id];
+        ainfo.replicas_count = kv.second;
+        cluster_info.apps_info[app_id] = ainfo;
+        cluster_info.apps_skew[app_id] = get_skew(kv.second);
+    }
+    return true;
+}
+
 } // namespace replication
 } // namespace dsn

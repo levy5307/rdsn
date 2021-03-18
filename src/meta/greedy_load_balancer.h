@@ -159,6 +159,72 @@ private:
     std::string clear_balancer_ignored_app_ids();
 
     bool is_ignored_app(app_id app_id);
+
+    // ----------------------------------------------
+    // TODO(heyuchen):
+
+    enum cluster_balance_type
+    {
+        kTotal = 0
+    };
+
+    struct AppMigrationInfo {
+        int32_t app_id;
+        std::string app_name;
+        // std::unordered_map<rpc_address, int32_t> primary_replica_count;
+        // std::unordered_map<rpc_address, int32_t> secondary_replica_count;
+        std::unordered_map<rpc_address, int32_t> replicas_count;
+        bool operator < (const AppMigrationInfo& another) const {
+           if ( app_id < another.app_id )
+             return true;
+           return false;
+        }
+        bool operator == (const AppMigrationInfo& another) const {
+            return app_id == another.app_id;
+        }
+    };
+
+    struct ClusterMigrationInfo {
+        cluster_balance_type type;
+        std::unordered_map<int32_t, int32_t> apps_skew;
+        std::unordered_map<int32_t, AppMigrationInfo> apps_info;
+        // std::unordered_map<rpc_address, int32_t> primary_replica_count;
+        std::unordered_map<rpc_address, int32_t> replicas_count;
+    };
+
+    void total_replica_balance(meta_view view, migration_list &list);
+    bool get_cluster_migration_info(const meta_view &view, /*out*/ ClusterMigrationInfo &cluster_info);
+    // void get_next_step(ClusterMigrationInfo &cluster_info);
+
+    inline int32_t get_count(node_state ns, cluster_balance_type type, int32_t app_id)
+    {
+        int32_t count = 0;
+        switch(type){
+        case kTotal:
+            if(app_id > 0){
+                count = ns.partition_count(app_id);
+            }else{
+                count = ns.partition_count();
+            }
+            break;
+        default:
+            break;
+        }
+        return count;
+    }
+
+    inline int32_t get_skew(const std::unordered_map<rpc_address, int32_t> &count_map){
+        int32_t min = INT_MAX, max = 0;
+        for(const auto &kv : count_map){
+            if(kv.second < min){
+                min = kv.second;
+            }
+            if(kv.second > max){
+                max = kv.second;
+            }
+        }
+        return max-min;
+    }
 };
 
 inline configuration_proposal_action
