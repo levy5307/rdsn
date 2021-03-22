@@ -1053,11 +1053,12 @@ void greedy_load_balancer::total_replica_balance(meta_view view, migration_list 
 }
 
 // get cluster info
-bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view, /*out*/ ClusterMigrationInfo &cluster_info)
+bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
+                                                      /*out*/ ClusterMigrationInfo &cluster_info)
 {
     const node_mapper nodes = *(view.nodes);
     const app_mapper apps = *(view.apps);
-    if(nodes.size() < 3){
+    if (nodes.size() < 3) {
         return false;
     }
     for (const auto &kv : nodes) {
@@ -1074,27 +1075,27 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view, /*o
     }
 
     cluster_info.type = kTotal;
-    std::unordered_map<int32_t, std::unordered_map<rpc_address, int32_t>> apps_count;
-    std::unordered_map<int32_t, std::string> apps_name;
-    for(const auto &kv : nodes){
+    std::map<int32_t, std::map<rpc_address, int32_t>> apps_count;
+    std::map<int32_t, std::string> apps_name;
+    for (const auto &kv : nodes) {
         node_state ns = kv.second;
         cluster_info.replicas_count[ns.addr()] = get_count(ns, kTotal, -1);
-        for(const auto &it : apps){
+        for (const auto &it : apps) {
             auto app_id = it.first;
             auto count = get_count(ns, kTotal, app_id);
             auto iter = apps_count.find(app_id);
-            if(iter == apps_count.end()){
+            if (iter == apps_count.end()) {
                 apps_name[app_id] = it.second->app_name;
-                std::unordered_map<rpc_address, int32_t> app_node_count;
+                std::map<rpc_address, int32_t> app_node_count;
                 app_node_count[ns.addr()] = count;
                 apps_count[app_id] = app_node_count;
-            }else{
+            } else {
                 (iter->second)[ns.addr()] = count;
             }
         }
     }
 
-    for(const auto &kv : apps_count){
+    for (const auto &kv : apps_count) {
         auto app_id = kv.first;
         AppMigrationInfo ainfo;
         ainfo.app_id = app_id;
@@ -1104,6 +1105,69 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view, /*o
         cluster_info.apps_skew[app_id] = get_skew(kv.second);
     }
     return true;
+}
+
+void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigrationInfo &cluster_info)
+{
+    std::multimap<int32_t, int32_t> app_skew_multimap;
+    flip_map(cluster_info.apps_skew, app_skew_multimap);
+    auto max_app_skew = app_skew_multimap.rbegin()->first;
+    if (max_app_skew == 0) {
+        // all app balance
+        return;
+    }
+
+    //    auto cluster_count_multimap = flip_map(cluster_info.replicas_count);
+    //    auto server_skew = cluster_count_multimap.rbegin()->first -
+    //    cluster_count_multimap.begin()->first;
+    auto server_skew = get_skew(cluster_info.replicas_count);
+    if (max_app_skew <= 1 && server_skew <= 1) {
+        // table balance and server balance
+        return;
+    }
+
+    auto app_range = app_skew_multimap.equal_range(max_app_skew);
+    for (auto iter = app_range.first; iter != app_range.second; ++iter) {
+        // get app max, min node set
+        // get server max, min node set
+        auto app_id = iter->second;
+        auto app_map = cluster_info.apps_info[app_id].replicas_count;
+        std::set<rpc_address> app_min_count_nodes;
+        std::set<rpc_address> app_max_count_nodes;
+        get_min_max_set(app_map, app_min_count_nodes, app_max_count_nodes);
+        std::set<rpc_address> cluster_min_count_nodes;
+        std::set<rpc_address> cluster_max_count_nodes;
+        get_min_max_set(
+            cluster_info.replicas_count, cluster_min_count_nodes, cluster_max_count_nodes);
+        // get app and cluster interception
+        std::set<rpc_address> app_cluster_min_set;
+        get_intersection(app_min_count_nodes, cluster_min_count_nodes, app_cluster_min_set);
+        std::set<rpc_address> app_cluster_max_set;
+        get_intersection(app_max_count_nodes, cluster_max_count_nodes, app_cluster_max_set);
+
+        if (!app_cluster_min_set.empty() && !app_cluster_max_set.empty()) {
+            // choose a move to make both app and cluster more balanced
+            // tbd
+        }
+
+        if (max_app_skew <= 1) {
+            // any move for this app may make it more unbalanced
+            continue;
+        }
+
+        // choose a move to make app more balanced
+        // tbd
+    }
+}
+
+void greedy_load_balancer::get_min_max_set(const std::map<rpc_address, int32_t> &node_count_map,
+                                           /*out*/ std::set<rpc_address> &min_set,
+                                           /*out*/ std::set<rpc_address> &max_set)
+{
+    std::multimap<int32_t, rpc_address> count_multimap;
+    flip_map(node_count_map, count_multimap);
+    get_value_set(count_multimap, true, min_set);
+    get_value_set(count_multimap, false, max_set);
 }
 
 } // namespace replication

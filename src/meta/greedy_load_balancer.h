@@ -34,6 +34,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include "server_load_balancer.h"
 
@@ -168,42 +169,44 @@ private:
         kTotal = 0
     };
 
-    struct AppMigrationInfo {
+    struct AppMigrationInfo
+    {
         int32_t app_id;
         std::string app_name;
         // std::unordered_map<rpc_address, int32_t> primary_replica_count;
         // std::unordered_map<rpc_address, int32_t> secondary_replica_count;
-        std::unordered_map<rpc_address, int32_t> replicas_count;
-        bool operator < (const AppMigrationInfo& another) const {
-           if ( app_id < another.app_id )
-             return true;
-           return false;
+        std::map<rpc_address, int32_t> replicas_count;
+        bool operator<(const AppMigrationInfo &another) const
+        {
+            if (app_id < another.app_id)
+                return true;
+            return false;
         }
-        bool operator == (const AppMigrationInfo& another) const {
-            return app_id == another.app_id;
-        }
+        bool operator==(const AppMigrationInfo &another) const { return app_id == another.app_id; }
     };
 
-    struct ClusterMigrationInfo {
+    struct ClusterMigrationInfo
+    {
         cluster_balance_type type;
-        std::unordered_map<int32_t, int32_t> apps_skew;
-        std::unordered_map<int32_t, AppMigrationInfo> apps_info;
+        std::map<int32_t, int32_t> apps_skew;
+        std::map<int32_t, AppMigrationInfo> apps_info;
         // std::unordered_map<rpc_address, int32_t> primary_replica_count;
-        std::unordered_map<rpc_address, int32_t> replicas_count;
+        std::map<rpc_address, int32_t> replicas_count;
     };
 
     void total_replica_balance(meta_view view, migration_list &list);
-    bool get_cluster_migration_info(const meta_view &view, /*out*/ ClusterMigrationInfo &cluster_info);
-    // void get_next_step(ClusterMigrationInfo &cluster_info);
+    bool get_cluster_migration_info(const meta_view &view,
+                                    /*out*/ ClusterMigrationInfo &cluster_info);
+    void get_next_step(const meta_view &view, ClusterMigrationInfo &cluster_info);
 
     inline int32_t get_count(node_state ns, cluster_balance_type type, int32_t app_id)
     {
         int32_t count = 0;
-        switch(type){
+        switch (type) {
         case kTotal:
-            if(app_id > 0){
+            if (app_id > 0) {
                 count = ns.partition_count(app_id);
-            }else{
+            } else {
                 count = ns.partition_count();
             }
             break;
@@ -213,17 +216,55 @@ private:
         return count;
     }
 
-    inline int32_t get_skew(const std::unordered_map<rpc_address, int32_t> &count_map){
+    inline int32_t get_skew(const std::map<rpc_address, int32_t> &count_map)
+    {
         int32_t min = INT_MAX, max = 0;
-        for(const auto &kv : count_map){
-            if(kv.second < min){
+        for (const auto &kv : count_map) {
+            if (kv.second < min) {
                 min = kv.second;
             }
-            if(kv.second > max){
+            if (kv.second > max) {
                 max = kv.second;
             }
         }
-        return max-min;
+        return max - min;
+    }
+
+    template <typename A, typename B>
+    void flip_map(const std::map<A, B> &ori, /*out*/ std::multimap<B, A> &target)
+    {
+        std::transform(ori.begin(),
+                       ori.end(),
+                       std::inserter(target, target.begin()),
+                       [](const std::pair<A, B> &p) { return std::pair<B, A>(p.second, p.first); });
+    }
+
+    void get_min_max_set(const std::map<rpc_address, int32_t> &node_count_map,
+                         /*out*/ std::set<rpc_address> &min_set,
+                         /*out*/ std::set<rpc_address> &max_set);
+
+    template <typename A, typename B>
+    void get_value_set(const std::multimap<A, B> &map_struct,
+                       bool get_first,
+                       /*out*/ std::set<B> &target_set)
+    {
+        auto value = get_first ? map_struct.begin()->first : map_struct.rbegin()->first;
+        auto range = map_struct.equal_range(value);
+        for (auto iter = range.first; iter != range.second; ++iter) {
+            target_set.insert(iter->second);
+        }
+    }
+
+    template <typename A>
+    void get_intersection(const std::set<A> &set1,
+                          const std::set<A> &set2,
+                          /*out*/ std::set<A> intersection)
+    {
+        std::set_intersection(set1.begin(),
+                              set1.end(),
+                              set2.begin(),
+                              set2.end(),
+                              std::inserter(intersection, intersection.begin()));
     }
 };
 
