@@ -163,7 +163,6 @@ private:
 
     // ----------------------------------------------
     // TODO(heyuchen):
-
     enum class cluster_balance_type
     {
         kTotal = 0
@@ -194,10 +193,21 @@ private:
         std::map<rpc_address, int32_t> replicas_count;
     };
 
+    struct MoveInfo
+    {
+        gpid pid;
+        rpc_address source_node;
+        rpc_address target_node;
+        balance_type type;
+    };
+
     void total_replica_balance(meta_view view, migration_list &list);
     bool get_cluster_migration_info(const meta_view &view,
                                     /*out*/ ClusterMigrationInfo &cluster_info);
-    void get_next_step(const meta_view &view, ClusterMigrationInfo &cluster_info);
+    bool get_next_move(const meta_view &view,
+                       ClusterMigrationInfo &cluster_info,
+                       const partition_set &selected_pid,
+                       /*out*/ MoveInfo &next_move);
 
     inline int32_t get_count(node_state ns, cluster_balance_type type, int32_t app_id)
     {
@@ -272,9 +282,8 @@ private:
                       const std::set<rpc_address> &min_nodes,
                       int32_t app_id,
                       cluster_balance_type type,
-                      /*out*/ rpc_address &source_node,
-                      /*out*/ rpc_address &target_node,
-                      /*out*/ gpid &picked_pid);
+                      const partition_set &selected_pid,
+                      /*out*/ MoveInfo &move_info);
 
     bool get_max_load_disk(const node_mapper &nodes,
                            const std::shared_ptr<app_state> &app,
@@ -290,6 +299,7 @@ private:
 
     bool pick_up_partition(const node_state &min_node,
                            const partition_set &max_load_partitions,
+                           const partition_set &selected_pid,
                            /*out*/ gpid picked_pid);
 };
 

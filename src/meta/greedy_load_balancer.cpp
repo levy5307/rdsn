@@ -1046,10 +1046,21 @@ bool greedy_load_balancer::is_ignored_app(app_id app_id)
 void greedy_load_balancer::total_replica_balance(meta_view view, migration_list &list)
 {
     list.clear();
+
     // calculate cluster balance info
+    ClusterMigrationInfo cluster_info;
+    get_cluster_migration_info(view, cluster_info);
+
     // if not balance:
     // - calculate next migration
     // - apply migration
+    int32_t count_per_round = 10;
+    partition_set selected_pid;
+    MoveInfo next_move;
+    while (list.size() < count_per_round ||
+           get_next_move(view, cluster_info, selected_pid, next_move)) {
+        // tbd: apply_move(view, list, cluster_info);
+    }
 }
 
 // get cluster info
@@ -1107,24 +1118,26 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
     return true;
 }
 
-void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigrationInfo &cluster_info)
+bool greedy_load_balancer::get_next_move(const meta_view &view,
+                                         ClusterMigrationInfo &cluster_info,
+                                         const partition_set &selected_pid,
+                                         /*out*/ MoveInfo &next_move)
 {
     std::multimap<int32_t, int32_t> app_skew_multimap;
     flip_map(cluster_info.apps_skew, app_skew_multimap);
     auto max_app_skew = app_skew_multimap.rbegin()->first;
     if (max_app_skew == 0) {
         // all app balance
-        return;
+        return false;
     }
 
     auto server_skew = get_skew(cluster_info.replicas_count);
     if (max_app_skew <= 1 && server_skew <= 1) {
         // table balance and server balance
-        return;
+        return false;
     }
 
-    rpc_address source_node, target_node;
-    gpid picked_partition = gpid(0, 0);
+    bool found = false;
     auto app_range = app_skew_multimap.equal_range(max_app_skew);
     for (auto iter = app_range.first; iter != app_range.second; ++iter) {
         // get app max, min node set
@@ -1151,9 +1164,9 @@ void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigration
                              app_cluster_min_set,
                              app_id,
                              cluster_info.type,
-                             source_node,
-                             target_node,
-                             picked_partition)) {
+                             selected_pid,
+                             next_move)) {
+                found = true;
                 break;
             }
         }
@@ -1169,14 +1182,14 @@ void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigration
                          app_cluster_min_set.empty() ? app_min_count_nodes : app_cluster_min_set,
                          app_id,
                          cluster_info.type,
-                         source_node,
-                         target_node,
-                         picked_partition)) {
+                         selected_pid,
+                         next_move)) {
+            found = true;
             break;
         }
     }
 
-    // generate mirgration plan tbd
+    return found;
 }
 
 void greedy_load_balancer::get_min_max_set(const std::map<rpc_address, int32_t> &node_count_map,
@@ -1194,9 +1207,8 @@ bool greedy_load_balancer::pick_up_move(const meta_view &view,
                                         const std::set<rpc_address> &min_nodes,
                                         int32_t app_id,
                                         cluster_balance_type type,
-                                        /*out*/ rpc_address &source_node,
-                                        /*out*/ rpc_address &target_node,
-                                        /*out*/ gpid &picked_pid)
+                                        const partition_set &selected_pid,
+                                        /*out*/ MoveInfo &move_info)
 {
     const node_mapper nodes = *(view.nodes);
     const app_mapper apps = *(view.apps);
@@ -1214,15 +1226,19 @@ bool greedy_load_balancer::pick_up_move(const meta_view &view,
     get_max_load_disk(nodes, app, max_nodes, type, max_load_node, max_load_partitions);
 
     // - travesal all min nodes, find one to move
+    gpid picked_pid;
     bool found = false;
     for (const auto &node_addr : min_nodes) {
         auto iter = nodes.find(node_addr);
         if (iter == nodes.end()) {
             continue;
         }
-        if (pick_up_partition(iter->second, max_load_partitions, picked_pid)) {
-            source_node = max_load_node;
-            target_node = node_addr;
+        if (pick_up_partition(iter->second, max_load_partitions, selected_pid, picked_pid)) {
+            move_info.pid = picked_pid;
+            move_info.source_node = max_load_node;
+            move_info.target_node = node_addr;
+            move_info.type = type == cluster_balance_type::kTotal ? balance_type::copy_secondary
+                                                                  : balance_type::copy_primary;
             found = true;
             break;
         }
@@ -1280,11 +1296,17 @@ void greedy_load_balancer::get_disk_partitions_map(
 
 bool greedy_load_balancer::pick_up_partition(const node_state &min_node,
                                              const partition_set &max_load_partitions,
+                                             const partition_set &selected_pid,
                                              /*out*/ gpid picked_pid)
 {
     bool found = false;
     for (const auto &pid : max_load_partitions) {
+        // partition has already been primary or secondary on min_node
         if (min_node.served_as(pid) != partition_status::PS_INACTIVE) {
+            continue;
+        }
+        // partition has already in mirgration list
+        if (selected_pid.find(pid) != selected_pid.end()) {
             continue;
         }
         picked_pid = pid;
