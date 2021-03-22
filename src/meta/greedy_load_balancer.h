@@ -164,7 +164,7 @@ private:
     // ----------------------------------------------
     // TODO(heyuchen):
 
-    enum cluster_balance_type
+    enum class cluster_balance_type
     {
         kTotal = 0
     };
@@ -203,7 +203,7 @@ private:
     {
         int32_t count = 0;
         switch (type) {
-        case kTotal:
+        case cluster_balance_type::kTotal:
             if (app_id > 0) {
                 count = ns.partition_count(app_id);
             } else {
@@ -266,6 +266,31 @@ private:
                               set2.end(),
                               std::inserter(intersection, intersection.begin()));
     }
+
+    bool pick_up_move(const meta_view &view,
+                      const std::set<rpc_address> &max_nodes,
+                      const std::set<rpc_address> &min_nodes,
+                      int32_t app_id,
+                      cluster_balance_type type,
+                      /*out*/ rpc_address &source_node,
+                      /*out*/ rpc_address &target_node,
+                      /*out*/ gpid &picked_pid);
+
+    bool get_max_load_disk(const node_mapper &nodes,
+                           const std::shared_ptr<app_state> &app,
+                           const std::set<rpc_address> &max_nodes,
+                           cluster_balance_type type,
+                           /*out*/ rpc_address &picked_node,
+                           /*out*/ partition_set &target_partitions);
+
+    void get_disk_partitions_map(const node_state &ns,
+                                 const std::shared_ptr<app_state> &app,
+                                 cluster_balance_type type,
+                                 /*out*/ std::map<std::string, partition_set> &disk_partitions);
+
+    bool pick_up_partition(const node_state &min_node,
+                           const partition_set &max_load_partitions,
+                           /*out*/ gpid picked_pid);
 };
 
 inline configuration_proposal_action

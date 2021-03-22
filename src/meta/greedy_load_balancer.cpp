@@ -1074,15 +1074,15 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
         }
     }
 
-    cluster_info.type = kTotal;
+    cluster_info.type = cluster_balance_type::kTotal;
     std::map<int32_t, std::map<rpc_address, int32_t>> apps_count;
     std::map<int32_t, std::string> apps_name;
     for (const auto &kv : nodes) {
         node_state ns = kv.second;
-        cluster_info.replicas_count[ns.addr()] = get_count(ns, kTotal, -1);
+        cluster_info.replicas_count[ns.addr()] = get_count(ns, cluster_balance_type::kTotal, -1);
         for (const auto &it : apps) {
             auto app_id = it.first;
-            auto count = get_count(ns, kTotal, app_id);
+            auto count = get_count(ns, cluster_balance_type::kTotal, app_id);
             auto iter = apps_count.find(app_id);
             if (iter == apps_count.end()) {
                 apps_name[app_id] = it.second->app_name;
@@ -1117,15 +1117,14 @@ void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigration
         return;
     }
 
-    //    auto cluster_count_multimap = flip_map(cluster_info.replicas_count);
-    //    auto server_skew = cluster_count_multimap.rbegin()->first -
-    //    cluster_count_multimap.begin()->first;
     auto server_skew = get_skew(cluster_info.replicas_count);
     if (max_app_skew <= 1 && server_skew <= 1) {
         // table balance and server balance
         return;
     }
 
+    rpc_address source_node, target_node;
+    gpid picked_partition = gpid(0, 0);
     auto app_range = app_skew_multimap.equal_range(max_app_skew);
     for (auto iter = app_range.first; iter != app_range.second; ++iter) {
         // get app max, min node set
@@ -1147,7 +1146,16 @@ void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigration
 
         if (!app_cluster_min_set.empty() && !app_cluster_max_set.empty()) {
             // choose a move to make both app and cluster more balanced
-            // tbd
+            if (pick_up_move(view,
+                             app_cluster_max_set,
+                             app_cluster_min_set,
+                             app_id,
+                             cluster_info.type,
+                             source_node,
+                             target_node,
+                             picked_partition)) {
+                break;
+            }
         }
 
         if (max_app_skew <= 1) {
@@ -1156,8 +1164,19 @@ void greedy_load_balancer::get_next_step(const meta_view &view, ClusterMigration
         }
 
         // choose a move to make app more balanced
-        // tbd
+        if (pick_up_move(view,
+                         app_cluster_max_set.empty() ? app_max_count_nodes : app_cluster_max_set,
+                         app_cluster_min_set.empty() ? app_min_count_nodes : app_cluster_min_set,
+                         app_id,
+                         cluster_info.type,
+                         source_node,
+                         target_node,
+                         picked_partition)) {
+            break;
+        }
     }
+
+    // generate mirgration plan tbd
 }
 
 void greedy_load_balancer::get_min_max_set(const std::map<rpc_address, int32_t> &node_count_map,
@@ -1168,6 +1187,111 @@ void greedy_load_balancer::get_min_max_set(const std::map<rpc_address, int32_t> 
     flip_map(node_count_map, count_multimap);
     get_value_set(count_multimap, true, min_set);
     get_value_set(count_multimap, false, max_set);
+}
+
+bool greedy_load_balancer::pick_up_move(const meta_view &view,
+                                        const std::set<rpc_address> &max_nodes,
+                                        const std::set<rpc_address> &min_nodes,
+                                        int32_t app_id,
+                                        cluster_balance_type type,
+                                        /*out*/ rpc_address &source_node,
+                                        /*out*/ rpc_address &target_node,
+                                        /*out*/ gpid &picked_pid)
+{
+    const node_mapper nodes = *(view.nodes);
+    const app_mapper apps = *(view.apps);
+    auto iterator = apps.find(app_id);
+    if (iterator == apps.end()) {
+        return false;
+    }
+
+    const auto app = iterator->second;
+    // max_node:
+    // - disk_tag: disk_app_replica_count, secondary set
+    // - sort by disk_app_replica_count, get largest one -> secondary set
+    rpc_address max_load_node;
+    partition_set max_load_partitions;
+    get_max_load_disk(nodes, app, max_nodes, type, max_load_node, max_load_partitions);
+
+    // - travesal all min nodes, find one to move
+    bool found = false;
+    for (const auto &node_addr : min_nodes) {
+        auto iter = nodes.find(node_addr);
+        if (iter == nodes.end()) {
+            continue;
+        }
+        if (pick_up_partition(iter->second, max_load_partitions, picked_pid)) {
+            source_node = max_load_node;
+            target_node = node_addr;
+            found = true;
+            break;
+        }
+    }
+    return found;
+}
+
+bool greedy_load_balancer::get_max_load_disk(const node_mapper &nodes,
+                                             const std::shared_ptr<app_state> &app,
+                                             const std::set<rpc_address> &max_nodes,
+                                             cluster_balance_type type,
+                                             /*out*/ rpc_address &picked_node,
+                                             /*out*/ partition_set &target_partitions)
+{
+    int32_t max_load_size = 0;
+    for (const auto &node_addr : max_nodes) {
+        auto iter = nodes.find(node_addr);
+        if (iter == nodes.end()) {
+            continue;
+        }
+        std::map<std::string, partition_set> disk_partitions;
+        get_disk_partitions_map(iter->second, app, type, disk_partitions);
+        for (const auto &kv : disk_partitions) {
+            if (kv.second.size() > max_load_size) {
+                picked_node = node_addr;
+                target_partitions = kv.second;
+                max_load_size = kv.second.size();
+            }
+        }
+    }
+    return true;
+}
+
+void greedy_load_balancer::get_disk_partitions_map(
+    const node_state &ns,
+    const std::shared_ptr<app_state> &app,
+    cluster_balance_type type,
+    /*out*/ std::map<std::string, partition_set> &disk_partitions)
+{
+    auto status = type == cluster_balance_type::kTotal ? partition_status::PS_SECONDARY
+                                                       : partition_status::PS_PRIMARY;
+    for (const auto &pid : *(ns.partitions(app->app_id, false))) {
+        if (ns.served_as(pid) != status) {
+            continue;
+        }
+        config_context &context = app->helpers->contexts[pid.get_partition_index()];
+        auto it = context.find_from_serving(ns.addr());
+        if (it == context.serving.end()) {
+            continue;
+        } else {
+            disk_partitions[it->disk_tag].insert(pid);
+        }
+    }
+}
+
+bool greedy_load_balancer::pick_up_partition(const node_state &min_node,
+                                             const partition_set &max_load_partitions,
+                                             /*out*/ gpid picked_pid)
+{
+    bool found = false;
+    for (const auto &pid : max_load_partitions) {
+        if (min_node.served_as(pid) != partition_status::PS_INACTIVE) {
+            continue;
+        }
+        picked_pid = pid;
+        found = true;
+        break;
+    }
+    return found;
 }
 
 } // namespace replication
