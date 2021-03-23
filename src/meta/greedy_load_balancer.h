@@ -301,6 +301,12 @@ private:
                            const partition_set &max_load_partitions,
                            const partition_set &selected_pid,
                            /*out*/ gpid picked_pid);
+
+    bool apply_move(const app_mapper apps,
+                    const MoveInfo &move,
+                    /*out*/ partition_set &selected_pids,
+                    /*out*/ migration_list &list,
+                    /*out*/ ClusterMigrationInfo cluster_info);
 };
 
 inline configuration_proposal_action

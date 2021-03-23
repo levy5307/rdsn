@@ -1059,8 +1059,12 @@ void greedy_load_balancer::total_replica_balance(meta_view view, migration_list 
     MoveInfo next_move;
     while (list.size() < count_per_round ||
            get_next_move(view, cluster_info, selected_pid, next_move)) {
-        // tbd: apply_move(view, list, cluster_info);
+        if (!apply_move(*(view.apps), next_move, selected_pid, list, cluster_info)) {
+            break;
+        }
     }
+
+    // now list have 10 count
 }
 
 // get cluster info
@@ -1314,6 +1318,51 @@ bool greedy_load_balancer::pick_up_partition(const node_state &min_node,
         break;
     }
     return found;
+}
+
+bool greedy_load_balancer::apply_move(const app_mapper apps,
+                                      const MoveInfo &move,
+                                      /*out*/ partition_set &selected_pids,
+                                      /*out*/ migration_list &list,
+                                      /*out*/ ClusterMigrationInfo cluster_info)
+{
+    auto iterator = apps.find(move.pid.get_app_id());
+    if (iterator == apps.end()) {
+        return false;
+    }
+    auto app_iter = cluster_info.apps_info.find(move.pid.get_app_id());
+    auto app_skew_iter = cluster_info.apps_skew.find(move.pid.get_app_id());
+    if (app_iter == cluster_info.apps_info.end() || app_skew_iter == cluster_info.apps_skew.end()) {
+        return false;
+    }
+    auto appMInfo = app_iter->second;
+    auto aiter1 = appMInfo.replicas_count.find(move.source_node);
+    auto aiter2 = appMInfo.replicas_count.find(move.target_node);
+    auto citer1 = cluster_info.replicas_count.find(move.source_node);
+    auto citer2 = cluster_info.replicas_count.find(move.target_node);
+    if (aiter1 == appMInfo.replicas_count.end() || aiter2 == appMInfo.replicas_count.end() ||
+        citer1 == cluster_info.replicas_count.end() ||
+        citer2 == cluster_info.replicas_count.end()) {
+        return false;
+    }
+
+    // add into migration list and selected_pid
+    const auto app = iterator->second;
+    list.emplace(move.pid,
+                 generate_balancer_request(app->partitions[move.pid.get_partition_index()],
+                                           move.type,
+                                           move.source_node,
+                                           move.target_node));
+    selected_pids.insert(move.pid);
+
+    // update clusterInfo
+    appMInfo.replicas_count[move.source_node]--;
+    appMInfo.replicas_count[move.target_node]++;
+    cluster_info.replicas_count[move.source_node]--;
+    cluster_info.replicas_count[move.target_node]++;
+    cluster_info.apps_info[move.pid.get_app_id()] = appMInfo;
+    cluster_info.apps_skew[move.pid.get_app_id()] = get_skew(appMInfo.replicas_count);
+    return true;
 }
 
 } // namespace replication
