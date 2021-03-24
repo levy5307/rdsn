@@ -42,16 +42,19 @@ greedy_load_balancer::greedy_load_balancer(meta_service *_svc)
       _ctrl_balancer_in_turn(nullptr),
       _ctrl_only_primary_balancer(nullptr),
       _ctrl_only_move_primary(nullptr),
-      _get_balance_operation_count(nullptr)
+      _get_balance_operation_count(nullptr),
+      _ctrl_balance_cluster(nullptr)
 {
     if (_svc != nullptr) {
         _balancer_in_turn = _svc->get_meta_options()._lb_opts.balancer_in_turn;
         _only_primary_balancer = _svc->get_meta_options()._lb_opts.only_primary_balancer;
         _only_move_primary = _svc->get_meta_options()._lb_opts.only_move_primary;
+        _balance_cluster = false;
     } else {
         _balancer_in_turn = false;
         _only_primary_balancer = false;
         _only_move_primary = false;
+        _balance_cluster = false;
     }
 
     ::memset(t_operation_counters, 0, sizeof(t_operation_counters));
@@ -84,6 +87,7 @@ greedy_load_balancer::~greedy_load_balancer()
     UNREGISTER_VALID_HANDLER(_ctrl_only_primary_balancer);
     UNREGISTER_VALID_HANDLER(_ctrl_only_move_primary);
     UNREGISTER_VALID_HANDLER(_get_balance_operation_count);
+    UNREGISTER_VALID_HANDLER(_ctrl_balance_cluster);
 }
 
 void greedy_load_balancer::register_ctrl_commands()
@@ -129,6 +133,14 @@ void greedy_load_balancer::register_ctrl_commands()
         [this](const std::vector<std::string> &args) {
             return remote_command_balancer_ignored_app_ids(args);
         });
+
+    _ctrl_balance_cluster = dsn::command_manager::instance().register_command(
+        {"meta.lb.balance_cluster"},
+        "lb.balance_cluster <true|false>",
+        "control whether balance whole cluster",
+        [this](const std::vector<std::string> &args) {
+            return remote_command_set_bool_flag(_balance_cluster, "lb.balance_cluster", args);
+        });
 }
 
 void greedy_load_balancer::unregister_ctrl_commands()
@@ -138,6 +150,7 @@ void greedy_load_balancer::unregister_ctrl_commands()
     UNREGISTER_VALID_HANDLER(_ctrl_only_move_primary);
     UNREGISTER_VALID_HANDLER(_get_balance_operation_count);
     UNREGISTER_VALID_HANDLER(_ctrl_balancer_ignored_apps);
+    UNREGISTER_VALID_HANDLER(_ctrl_balance_cluster);
 
     simple_load_balancer::unregister_ctrl_commands();
 }
@@ -816,6 +829,7 @@ bool greedy_load_balancer::all_replica_infos_collected(const node_state &ns)
 void greedy_load_balancer::greedy_balancer(const bool balance_checker)
 {
     const app_mapper &apps = *t_global_view->apps;
+    const node_mapper &nodes = *t_global_view->nodes;
 
     dassert(t_alive_nodes > 2, "too few nodes will be freezed");
     number_nodes(*t_global_view->nodes);
@@ -899,6 +913,19 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
                 }
             }
         }
+    }
+
+    if (!balance_checker && _balance_cluster) {
+        migration_list list;
+        bool enough_information = total_replica_balance(apps, nodes, list);
+        if (!enough_information) {
+            return;
+        }
+        if (!t_migration_result->empty()) {
+            ddebug("hyc: hahaha, size = {}", t_migration_result->size());
+            return;
+        }
+        // TODO(heyuchen): add primary move
     }
 }
 
@@ -1043,13 +1070,18 @@ bool greedy_load_balancer::is_ignored_app(app_id app_id)
 // ----------------------------------------------
 // TODO(heyuchen): implement cluster load balance
 // ----------------------------------------------
-void greedy_load_balancer::total_replica_balance(meta_view view, migration_list &list)
+bool greedy_load_balancer::total_replica_balance(const app_mapper &all_apps,
+                                                 const node_mapper &nodes,
+                                                 /*out*/ migration_list &list)
 {
     list.clear();
+    ddebug_f("hyc: start to balance cluster...");
 
     // calculate cluster balance info
     ClusterMigrationInfo cluster_info;
-    get_cluster_migration_info(view, cluster_info);
+    if (!get_cluster_migration_info(all_apps, nodes, cluster_info)) {
+        return false;
+    }
 
     // if not balance:
     // - calculate next migration
@@ -1057,22 +1089,25 @@ void greedy_load_balancer::total_replica_balance(meta_view view, migration_list 
     int32_t count_per_round = 10;
     partition_set selected_pid;
     MoveInfo next_move;
-    while (list.size() < count_per_round ||
-           get_next_move(view, cluster_info, selected_pid, next_move)) {
-        if (!apply_move(*(view.apps), next_move, selected_pid, list, cluster_info)) {
+    while (get_next_move(all_apps, nodes, cluster_info, selected_pid, next_move)) {
+        if (!apply_move(all_apps, next_move, selected_pid, list, cluster_info)) {
+            break;
+        }
+        if (list.size() >= count_per_round) {
             break;
         }
     }
 
-    // now list have 10 count
+    // now list have 10 count or balance
+    ddebug_f("hyc: migration count = {}", list.size());
+    return true;
 }
 
 // get cluster info
-bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
+bool greedy_load_balancer::get_cluster_migration_info(const app_mapper &all_apps,
+                                                      const node_mapper &nodes,
                                                       /*out*/ ClusterMigrationInfo &cluster_info)
 {
-    const node_mapper nodes = *(view.nodes);
-    const app_mapper apps = *(view.apps);
     if (nodes.size() < 3) {
         return false;
     }
@@ -1081,11 +1116,15 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
             return false;
         }
     }
-    for (const auto &kv : apps) {
+    app_mapper apps;
+    for (const auto &kv : all_apps) {
         const std::shared_ptr<app_state> &app = kv.second;
         // TODO(heyuchen): check other situations should not balance
-        if (is_ignored_app(kv.first) || app->is_bulk_loading || app->splitting()) {
+        if (is_ignored_app(app->app_id) || app->is_bulk_loading || app->splitting()) {
             return false;
+        }
+        if (app->status == app_status::AS_AVAILABLE) {
+            apps[app->app_id] = app;
         }
     }
 
@@ -1093,11 +1132,11 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
     std::map<int32_t, std::map<rpc_address, int32_t>> apps_count;
     std::map<int32_t, std::string> apps_name;
     for (const auto &kv : nodes) {
-        node_state ns = kv.second;
+        const node_state &ns = kv.second;
         cluster_info.replicas_count[ns.addr()] = get_count(ns, cluster_balance_type::kTotal, -1);
         for (const auto &it : apps) {
             auto app_id = it.first;
-            auto count = get_count(ns, cluster_balance_type::kTotal, app_id);
+            int32_t count = get_count(ns, cluster_balance_type::kTotal, app_id);
             auto iter = apps_count.find(app_id);
             if (iter == apps_count.end()) {
                 apps_name[app_id] = it.second->app_name;
@@ -1105,7 +1144,8 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
                 app_node_count[ns.addr()] = count;
                 apps_count[app_id] = app_node_count;
             } else {
-                (iter->second)[ns.addr()] = count;
+                auto &app_count = iter->second;
+                app_count[ns.addr()] = count;
             }
         }
     }
@@ -1122,7 +1162,8 @@ bool greedy_load_balancer::get_cluster_migration_info(const meta_view &view,
     return true;
 }
 
-bool greedy_load_balancer::get_next_move(const meta_view &view,
+bool greedy_load_balancer::get_next_move(const app_mapper &all_apps,
+                                         const node_mapper &nodes,
                                          ClusterMigrationInfo &cluster_info,
                                          const partition_set &selected_pid,
                                          /*out*/ MoveInfo &next_move)
@@ -1132,12 +1173,14 @@ bool greedy_load_balancer::get_next_move(const meta_view &view,
     auto max_app_skew = app_skew_multimap.rbegin()->first;
     if (max_app_skew == 0) {
         // all app balance
+        ddebug_f("hyc: all app balanced");
         return false;
     }
 
     auto server_skew = get_skew(cluster_info.replicas_count);
     if (max_app_skew <= 1 && server_skew <= 1) {
         // table balance and server balance
+        ddebug_f("hyc: most app balanced and server balanced");
         return false;
     }
 
@@ -1163,7 +1206,10 @@ bool greedy_load_balancer::get_next_move(const meta_view &view,
 
         if (!app_cluster_min_set.empty() && !app_cluster_max_set.empty()) {
             // choose a move to make both app and cluster more balanced
-            if (pick_up_move(view,
+            ddebug_f("hyc: there has a move for app({}) to make both cluster and app more balanced",
+                     app_id);
+            if (pick_up_move(all_apps,
+                             nodes,
                              app_cluster_max_set,
                              app_cluster_min_set,
                              app_id,
@@ -1175,13 +1221,18 @@ bool greedy_load_balancer::get_next_move(const meta_view &view,
             }
         }
 
-        if (max_app_skew <= 1) {
+        std::multimap<int32_t, rpc_address> app_count_multimap;
+        flip_map(app_map, app_count_multimap);
+        if (app_count_multimap.rbegin()->first <= app_count_multimap.begin()->first + 1) {
             // any move for this app may make it more unbalanced
+            ddebug_f("hyc: any move for app({}) will make it more unbalanced", app_id);
             continue;
         }
 
         // choose a move to make app more balanced
-        if (pick_up_move(view,
+        ddebug_f("hyc: there has a move for app({}) to make only app more balanced", app_id);
+        if (pick_up_move(all_apps,
+                         nodes,
                          app_cluster_max_set.empty() ? app_max_count_nodes : app_cluster_max_set,
                          app_cluster_min_set.empty() ? app_min_count_nodes : app_cluster_min_set,
                          app_id,
@@ -1206,7 +1257,8 @@ void greedy_load_balancer::get_min_max_set(const std::map<rpc_address, int32_t> 
     get_value_set(count_multimap, false, max_set);
 }
 
-bool greedy_load_balancer::pick_up_move(const meta_view &view,
+bool greedy_load_balancer::pick_up_move(const app_mapper &apps,
+                                        const node_mapper &nodes,
                                         const std::set<rpc_address> &max_nodes,
                                         const std::set<rpc_address> &min_nodes,
                                         int32_t app_id,
@@ -1214,8 +1266,6 @@ bool greedy_load_balancer::pick_up_move(const meta_view &view,
                                         const partition_set &selected_pid,
                                         /*out*/ MoveInfo &move_info)
 {
-    const node_mapper nodes = *(view.nodes);
-    const app_mapper apps = *(view.apps);
     auto iterator = apps.find(app_id);
     if (iterator == apps.end()) {
         return false;
@@ -1225,6 +1275,7 @@ bool greedy_load_balancer::pick_up_move(const meta_view &view,
     // max_node:
     // - disk_tag: disk_app_replica_count, secondary set
     // - sort by disk_app_replica_count, get largest one -> secondary set
+    // TODO(heyuchen): this move won't make secondary skew wrose
     rpc_address max_load_node;
     partition_set max_load_partitions;
     get_max_load_disk(nodes, app, max_nodes, type, max_load_node, max_load_partitions);
@@ -1243,6 +1294,10 @@ bool greedy_load_balancer::pick_up_move(const meta_view &view,
             move_info.target_node = node_addr;
             move_info.type = type == cluster_balance_type::kTotal ? balance_type::copy_secondary
                                                                   : balance_type::copy_primary;
+            ddebug_f("hyc: partition[{}] will migrate from {} to {}",
+                     picked_pid,
+                     max_load_node.to_string(),
+                     node_addr.to_string());
             found = true;
             break;
         }
@@ -1273,6 +1328,9 @@ bool greedy_load_balancer::get_max_load_disk(const node_mapper &nodes,
             }
         }
     }
+    ddebug_f("hyc: most load is node({}), count = {}",
+             picked_node.to_string(),
+             target_partitions.size());
     return true;
 }
 
@@ -1301,7 +1359,7 @@ void greedy_load_balancer::get_disk_partitions_map(
 bool greedy_load_balancer::pick_up_partition(const node_state &min_node,
                                              const partition_set &max_load_partitions,
                                              const partition_set &selected_pid,
-                                             /*out*/ gpid picked_pid)
+                                             /*out*/ gpid &picked_pid)
 {
     bool found = false;
     for (const auto &pid : max_load_partitions) {
@@ -1324,7 +1382,7 @@ bool greedy_load_balancer::apply_move(const app_mapper apps,
                                       const MoveInfo &move,
                                       /*out*/ partition_set &selected_pids,
                                       /*out*/ migration_list &list,
-                                      /*out*/ ClusterMigrationInfo cluster_info)
+                                      /*out*/ ClusterMigrationInfo &cluster_info)
 {
     auto iterator = apps.find(move.pid.get_app_id());
     if (iterator == apps.end()) {
@@ -1348,11 +1406,16 @@ bool greedy_load_balancer::apply_move(const app_mapper apps,
 
     // add into migration list and selected_pid
     const auto app = iterator->second;
-    list.emplace(move.pid,
-                 generate_balancer_request(app->partitions[move.pid.get_partition_index()],
-                                           move.type,
-                                           move.source_node,
-                                           move.target_node));
+    list[move.pid] = generate_balancer_request(app->partitions[move.pid.get_partition_index()],
+                                               move.type,
+                                               move.source_node,
+                                               move.target_node);
+    t_migration_result->emplace(
+        move.pid,
+        generate_balancer_request(app->partitions[move.pid.get_partition_index()],
+                                  move.type,
+                                  move.source_node,
+                                  move.target_node));
     selected_pids.insert(move.pid);
 
     // update clusterInfo

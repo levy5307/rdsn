@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <functional>
 #include "server_load_balancer.h"
+#include <dsn/dist/fmt_logging.h>
 
 namespace dsn {
 namespace replication {
@@ -92,6 +93,7 @@ private:
     bool _balancer_in_turn;
     bool _only_primary_balancer;
     bool _only_move_primary;
+    bool _balance_cluster;
 
     // the app set which won't be re-balanced
     std::set<app_id> _balancer_ignored_apps;
@@ -102,6 +104,7 @@ private:
     dsn_handle_t _ctrl_only_primary_balancer;
     dsn_handle_t _ctrl_only_move_primary;
     dsn_handle_t _get_balance_operation_count;
+    dsn_handle_t _ctrl_balance_cluster;
 
     // perf counters
     perf_counter_wrapper _balance_operation_count;
@@ -201,17 +204,21 @@ private:
         balance_type type;
     };
 
-    void total_replica_balance(meta_view view, migration_list &list);
-    bool get_cluster_migration_info(const meta_view &view,
+    bool total_replica_balance(const app_mapper &all_apps,
+                               const node_mapper &nodes,
+                               /*out*/ migration_list &list);
+    bool get_cluster_migration_info(const app_mapper &all_apps,
+                                    const node_mapper &nodes,
                                     /*out*/ ClusterMigrationInfo &cluster_info);
-    bool get_next_move(const meta_view &view,
+    bool get_next_move(const app_mapper &all_apps,
+                       const node_mapper &nodes,
                        ClusterMigrationInfo &cluster_info,
                        const partition_set &selected_pid,
                        /*out*/ MoveInfo &next_move);
 
-    inline int32_t get_count(node_state ns, cluster_balance_type type, int32_t app_id)
+    inline int32_t get_count(const node_state &ns, cluster_balance_type type, int32_t app_id)
     {
-        int32_t count = 0;
+        unsigned count = 0;
         switch (type) {
         case cluster_balance_type::kTotal:
             if (app_id > 0) {
@@ -223,7 +230,7 @@ private:
         default:
             break;
         }
-        return count;
+        return (int32_t)count;
     }
 
     inline int32_t get_skew(const std::map<rpc_address, int32_t> &count_map)
@@ -268,7 +275,7 @@ private:
     template <typename A>
     void get_intersection(const std::set<A> &set1,
                           const std::set<A> &set2,
-                          /*out*/ std::set<A> intersection)
+                          /*out*/ std::set<A> &intersection)
     {
         std::set_intersection(set1.begin(),
                               set1.end(),
@@ -277,7 +284,8 @@ private:
                               std::inserter(intersection, intersection.begin()));
     }
 
-    bool pick_up_move(const meta_view &view,
+    bool pick_up_move(const app_mapper &apps,
+                      const node_mapper &nodes,
                       const std::set<rpc_address> &max_nodes,
                       const std::set<rpc_address> &min_nodes,
                       int32_t app_id,
@@ -300,13 +308,13 @@ private:
     bool pick_up_partition(const node_state &min_node,
                            const partition_set &max_load_partitions,
                            const partition_set &selected_pid,
-                           /*out*/ gpid picked_pid);
+                           /*out*/ gpid &picked_pid);
 
     bool apply_move(const app_mapper apps,
                     const MoveInfo &move,
                     /*out*/ partition_set &selected_pids,
                     /*out*/ migration_list &list,
-                    /*out*/ ClusterMigrationInfo cluster_info);
+                    /*out*/ ClusterMigrationInfo &cluster_info);
 };
 
 inline configuration_proposal_action
