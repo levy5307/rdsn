@@ -175,8 +175,7 @@ private:
     {
         int32_t app_id;
         std::string app_name;
-        // std::unordered_map<rpc_address, int32_t> primary_replica_count;
-        // std::unordered_map<rpc_address, int32_t> secondary_replica_count;
+        std::vector<std::map<rpc_address, partition_status::type>> partitions;
         std::map<rpc_address, int32_t> replicas_count;
         bool operator<(const AppMigrationInfo &another) const
         {
@@ -185,6 +184,32 @@ private:
             return false;
         }
         bool operator==(const AppMigrationInfo &another) const { return app_id == another.app_id; }
+        partition_status::type get_partition_status(int32_t pidx, rpc_address addr)
+        {
+            for (const auto &kv : partitions[pidx]) {
+                if (kv.first == addr) {
+                    return kv.second;
+                }
+            }
+            return partition_status::PS_INACTIVE;
+        }
+    };
+
+    struct NodeMigrationInfo
+    {
+        rpc_address address;
+        std::map<std::string, partition_set> partitions;
+        partition_set future_partitions;
+        bool operator<(const NodeMigrationInfo &another) const
+        {
+            if (address < another.address)
+                return true;
+            return false;
+        }
+        bool operator==(const NodeMigrationInfo &another) const
+        {
+            return address == another.address;
+        }
     };
 
     struct ClusterMigrationInfo
@@ -192,7 +217,7 @@ private:
         cluster_balance_type type;
         std::map<int32_t, int32_t> apps_skew;
         std::map<int32_t, AppMigrationInfo> apps_info;
-        // std::unordered_map<rpc_address, int32_t> primary_replica_count;
+        std::map<rpc_address, NodeMigrationInfo> nodes_info;
         std::map<rpc_address, int32_t> replicas_count;
     };
 
@@ -200,6 +225,7 @@ private:
     {
         gpid pid;
         rpc_address source_node;
+        std::string source_disk_tag;
         rpc_address target_node;
         balance_type type;
     };
@@ -210,9 +236,7 @@ private:
     bool get_cluster_migration_info(const app_mapper &all_apps,
                                     const node_mapper &nodes,
                                     /*out*/ ClusterMigrationInfo &cluster_info);
-    bool get_next_move(const app_mapper &all_apps,
-                       const node_mapper &nodes,
-                       ClusterMigrationInfo &cluster_info,
+    bool get_next_move(const ClusterMigrationInfo &cluster_info,
                        const partition_set &selected_pid,
                        /*out*/ MoveInfo &next_move);
 
@@ -284,34 +308,32 @@ private:
                               std::inserter(intersection, intersection.begin()));
     }
 
-    bool pick_up_move(const app_mapper &apps,
-                      const node_mapper &nodes,
+    bool pick_up_move(const ClusterMigrationInfo &cluster_info,
                       const std::set<rpc_address> &max_nodes,
                       const std::set<rpc_address> &min_nodes,
-                      int32_t app_id,
-                      cluster_balance_type type,
+                      const int32_t app_id,
                       const partition_set &selected_pid,
                       /*out*/ MoveInfo &move_info);
 
-    bool get_max_load_disk(const node_mapper &nodes,
-                           const std::shared_ptr<app_state> &app,
+    bool get_max_load_disk(const ClusterMigrationInfo &cluster_info,
                            const std::set<rpc_address> &max_nodes,
-                           cluster_balance_type type,
+                           const int32_t app_id,
                            /*out*/ rpc_address &picked_node,
+                           /*out*/ std::string &picked_disk,
                            /*out*/ partition_set &target_partitions);
 
-    void get_disk_partitions_map(const node_state &ns,
-                                 const std::shared_ptr<app_state> &app,
-                                 cluster_balance_type type,
+    void get_disk_partitions_map(const ClusterMigrationInfo &cluster_info,
+                                 const rpc_address &addr,
+                                 const int32_t app_id,
                                  /*out*/ std::map<std::string, partition_set> &disk_partitions);
 
-    bool pick_up_partition(const node_state &min_node,
+    bool pick_up_partition(const ClusterMigrationInfo &cluster_info,
+                           const rpc_address &min_node_addr,
                            const partition_set &max_load_partitions,
                            const partition_set &selected_pid,
                            /*out*/ gpid &picked_pid);
 
-    bool apply_move(const app_mapper apps,
-                    const MoveInfo &move,
+    bool apply_move(const MoveInfo &move,
                     /*out*/ partition_set &selected_pids,
                     /*out*/ migration_list &list,
                     /*out*/ ClusterMigrationInfo &cluster_info);
