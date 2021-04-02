@@ -917,15 +917,24 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
 
     if (!balance_checker && _balance_cluster) {
         migration_list list;
-        bool enough_information = total_replica_balance(apps, nodes, list);
+        bool enough_information =
+            total_replica_balance(apps, nodes, cluster_balance_type::kPrimary, list);
         if (!enough_information) {
             return;
         }
         if (!t_migration_result->empty()) {
-            ddebug("hyc: hahaha, size = {}", t_migration_result->size());
+            ddebug("hyc: hahaha, primary size = {}", t_migration_result->size());
             return;
         }
-        // TODO(heyuchen): add primary move
+
+        enough_information = total_replica_balance(apps, nodes, cluster_balance_type::kTotal, list);
+        if (!enough_information) {
+            return;
+        }
+        if (!t_migration_result->empty()) {
+            ddebug("hyc: hahaha, secondary size = {}", t_migration_result->size());
+            return;
+        }
     }
 }
 
@@ -1072,6 +1081,7 @@ bool greedy_load_balancer::is_ignored_app(app_id app_id)
 // ----------------------------------------------
 bool greedy_load_balancer::total_replica_balance(const app_mapper &all_apps,
                                                  const node_mapper &nodes,
+                                                 const cluster_balance_type type,
                                                  /*out*/ migration_list &list)
 {
     list.clear();
@@ -1079,7 +1089,7 @@ bool greedy_load_balancer::total_replica_balance(const app_mapper &all_apps,
 
     // calculate cluster balance info
     ClusterMigrationInfo cluster_info;
-    if (!get_cluster_migration_info(all_apps, nodes, cluster_info)) {
+    if (!get_cluster_migration_info(all_apps, nodes, type, cluster_info)) {
         return false;
     }
 
@@ -1106,6 +1116,7 @@ bool greedy_load_balancer::total_replica_balance(const app_mapper &all_apps,
 // get cluster info
 bool greedy_load_balancer::get_cluster_migration_info(const app_mapper &all_apps,
                                                       const node_mapper &nodes,
+                                                      const cluster_balance_type type,
                                                       /*out*/ ClusterMigrationInfo &cluster_info)
 {
     if (nodes.size() < 3) {
@@ -1151,7 +1162,7 @@ bool greedy_load_balancer::get_cluster_migration_info(const app_mapper &all_apps
         for (const auto &it : nodes) {
             const node_state &ns = it.second;
             // TODO(heyuchen): update balance_type
-            auto count = get_count(ns, cluster_balance_type::kTotal, app->app_id);
+            auto count = get_count(ns, type, app->app_id);
             info.replicas_count[ns.addr()] = count;
         }
         cluster_info.apps_info.emplace(kv.first, info);
@@ -1181,11 +1192,11 @@ bool greedy_load_balancer::get_cluster_migration_info(const app_mapper &all_apps
             }
         }
         cluster_info.nodes_info[ns.addr()] = info;
-        auto count = get_count(ns, cluster_balance_type::kTotal, -1);
+        auto count = get_count(ns, type, -1);
         cluster_info.replicas_count[ns.addr()] = count;
     }
 
-    cluster_info.type = cluster_balance_type::kTotal;
+    cluster_info.type = type;
     return true;
 }
 
@@ -1215,7 +1226,7 @@ bool greedy_load_balancer::get_next_move(const ClusterMigrationInfo &cluster_inf
         // get app max, min node set
         auto app_id = iter->second;
         auto it = cluster_info.apps_info.find(app_id);
-        if(it == cluster_info.apps_info.end()){
+        if (it == cluster_info.apps_info.end()) {
             continue;
         }
         auto app_map = it->second.replicas_count;
@@ -1370,7 +1381,7 @@ void greedy_load_balancer::get_disk_partitions_map(
     for (const auto &kv : disk_partition) {
         auto disk_tag = kv.first;
         for (const auto &pid : kv.second) {
-            if(pid.get_app_id() != app_id){
+            if (pid.get_app_id() != app_id) {
                 continue;
             }
             auto status_map = app_partition[pid.get_partition_index()];

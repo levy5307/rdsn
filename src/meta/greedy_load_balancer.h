@@ -168,7 +168,8 @@ private:
     // TODO(heyuchen):
     enum class cluster_balance_type
     {
-        kTotal = 0
+        kTotal = 0,
+        kPrimary
     };
 
     struct AppMigrationInfo
@@ -232,9 +233,11 @@ private:
 
     bool total_replica_balance(const app_mapper &all_apps,
                                const node_mapper &nodes,
+                               const cluster_balance_type type,
                                /*out*/ migration_list &list);
     bool get_cluster_migration_info(const app_mapper &all_apps,
                                     const node_mapper &nodes,
+                                    const cluster_balance_type type,
                                     /*out*/ ClusterMigrationInfo &cluster_info);
     bool get_next_move(const ClusterMigrationInfo &cluster_info,
                        const partition_set &selected_pid,
@@ -249,6 +252,13 @@ private:
                 count = ns.partition_count(app_id);
             } else {
                 count = ns.partition_count();
+            }
+            break;
+        case cluster_balance_type::kPrimary:
+            if (app_id > 0) {
+                count = ns.primary_count(app_id);
+            } else {
+                count = ns.primary_count();
             }
             break;
         default:
