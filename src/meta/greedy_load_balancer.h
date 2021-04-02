@@ -347,6 +347,8 @@ private:
                     /*out*/ partition_set &selected_pids,
                     /*out*/ migration_list &list,
                     /*out*/ ClusterMigrationInfo &cluster_info);
+
+    bool move_primary_per_app(const std::shared_ptr<app_state> &app, const node_mapper &nodes);
 };
 
 inline configuration_proposal_action
