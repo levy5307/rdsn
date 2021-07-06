@@ -81,10 +81,17 @@ meta_service::meta_service()
     _access_controller = security::create_meta_access_controller();
 }
 
-meta_service::~meta_service()
+meta_service::~meta_service() { stop(); }
+
+void meta_service::stop()
 {
+    zauto_write_lock l(_meta_lock);
+    if (!_started.load()) {
+        return;
+    }
     _tracker.cancel_outstanding_tasks();
     unregister_ctrl_commands();
+    _started = false;
 }
 
 bool meta_service::check_freeze() const
@@ -255,7 +262,7 @@ void meta_service::register_ctrl_commands()
     _ctrl_node_live_percentage_threshold_for_update =
         dsn::command_manager::instance().register_command(
             {"meta.live_percentage"},
-            "live_percentage [num | DEFAULT]",
+            "meta.live_percentage [num | DEFAULT]",
             "node live percentage threshold for update",
             [this](const std::vector<std::string> &args) {
                 std::string result("OK");
@@ -493,6 +500,8 @@ void meta_service::register_rpc_handlers()
                                          &meta_service::on_query_bulk_load_status);
     register_rpc_handler_with_rpc_holder(
         RPC_CM_START_BACKUP_APP, "start_backup_app", &meta_service::on_start_backup_app);
+    register_rpc_handler_with_rpc_holder(
+        RPC_CM_QUERY_BACKUP_STATUS, "query_backup_status", &meta_service::on_query_backup_status);
 }
 
 int meta_service::check_leader(dsn::message_ex *req, dsn::rpc_address *forward_address)
@@ -1151,6 +1160,19 @@ void meta_service::on_start_backup_app(start_backup_app_rpc rpc)
         return;
     }
     _backup_handler->start_backup_app(std::move(rpc));
+}
+
+void meta_service::on_query_backup_status(query_backup_status_rpc rpc)
+{
+    if (!check_status(rpc)) {
+        return;
+    }
+    if (_backup_handler == nullptr) {
+        derror_f("meta doesn't enable backup service");
+        rpc.response().err = ERR_SERVICE_NOT_ACTIVE;
+        return;
+    }
+    _backup_handler->query_backup_status(std::move(rpc));
 }
 
 } // namespace replication

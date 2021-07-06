@@ -1,6 +1,19 @@
-// Copyright (c) 2017-present, Xiaomi, Inc.  All rights reserved.
-// This source code is licensed under the Apache License Version 2.0, which
-// can be found in the LICENSE file in the root directory of this source tree.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
@@ -83,20 +96,18 @@ void replica_http_service::query_app_data_version_handler(const http_request &re
         return;
     }
 
-    dsn::utils::table_printer tp;
-    tp.add_title("pidx");
-    tp.add_column("data_version");
+    nlohmann::json json;
     for (const auto &kv : version_map) {
-        tp.add_row(kv.first);
-        tp.append_data(kv.second);
+        json[std::to_string(kv.first)] = nlohmann::json{
+            {"data_version", std::to_string(kv.second)},
+        };
     }
-    std::ostringstream out;
-    tp.output(out, dsn::utils::table_printer::output_format::kJsonCompact);
-    resp.body = out.str();
     resp.status_code = http_status_code::ok;
+    resp.body = json.dump();
 }
 
-void replica_http_service::query_compaction_handler(const http_request &req, http_response &resp)
+void replica_http_service::query_manual_compaction_handler(const http_request &req,
+                                                           http_response &resp)
 {
     auto it = req.query_args.find("app_id");
     if (it == req.query_args.end()) {
@@ -113,28 +124,32 @@ void replica_http_service::query_compaction_handler(const http_request &req, htt
     }
 
     std::unordered_map<gpid, manual_compaction_status> partition_compaction_status;
-    _stub->query_app_compact_status(app_id, partition_compaction_status);
+    _stub->query_app_manual_compact_status(app_id, partition_compaction_status);
 
+    int32_t idle_count = 0;
     int32_t running_count = 0;
-    int32_t queue_count = 0;
-    int32_t finish_count = 0;
+    int32_t queuing_count = 0;
+    int32_t finished_count = 0;
     for (const auto &kv : partition_compaction_status) {
         if (kv.second == kRunning) {
             running_count++;
-        } else if (kv.second == kQueue) {
-            queue_count++;
-        } else if (kv.second == kFinish) {
-            finish_count++;
+        } else if (kv.second == kQueuing) {
+            queuing_count++;
+        } else if (kv.second == kFinished) {
+            finished_count++;
+        } else if (kv.second == kIdle) {
+            idle_count++;
         }
     }
-    dsn::utils::table_printer tp("status");
-    tp.add_row_name_and_data(manual_compaction_status_to_string(kRunning), running_count);
-    tp.add_row_name_and_data(manual_compaction_status_to_string(kQueue), queue_count);
-    tp.add_row_name_and_data(manual_compaction_status_to_string(kFinish), finish_count);
-    std::ostringstream out;
-    tp.output(out, dsn::utils::table_printer::output_format::kJsonCompact);
-    resp.body = out.str();
+
+    nlohmann::json json;
+    json["status"] =
+        nlohmann::json{{manual_compaction_status_to_string(kIdle), idle_count},
+                       {manual_compaction_status_to_string(kRunning), running_count},
+                       {manual_compaction_status_to_string(kQueuing), queuing_count},
+                       {manual_compaction_status_to_string(kFinished), finished_count}};
     resp.status_code = http_status_code::ok;
+    resp.body = json.dump();
 }
 
 } // namespace replication

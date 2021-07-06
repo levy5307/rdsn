@@ -1,6 +1,19 @@
-// Copyright (c) 2017-present, Xiaomi, Inc.  All rights reserved.
-// This source code is licensed under the Apache License Version 2.0, which
-// can be found in the LICENSE file in the root directory of this source tree.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 #include "replica.h"
 #include "mutation.h"
@@ -56,7 +69,6 @@ bool replica::throttle_write_request(message_ex *request)
 bool replica::throttle_read_request(message_ex *request)
 {
     THROTTLE_REQUEST(read, qps, request, 1);
-    THROTTLE_REQUEST(read, size, request, request->body_size());
     return false;
 }
 
@@ -68,8 +80,6 @@ void replica::update_throttle_envs(const std::map<std::string, std::string> &env
         envs, replica_envs::WRITE_SIZE_THROTTLING, _write_size_throttling_controller);
     update_throttle_env_internal(
         envs, replica_envs::READ_QPS_THROTTLING, _read_qps_throttling_controller);
-    update_throttle_env_internal(
-        envs, replica_envs::READ_SIZE_THROTTLING, _read_size_throttling_controller);
 }
 
 void replica::update_throttle_env_internal(const std::map<std::string, std::string> &envs,

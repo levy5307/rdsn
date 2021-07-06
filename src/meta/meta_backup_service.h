@@ -29,6 +29,7 @@
 
 #include "backup_engine.h"
 #include "meta_data.h"
+#include "meta_rpc_types.h"
 
 namespace dsn {
 namespace replication {
@@ -36,14 +37,6 @@ namespace replication {
 class meta_service;
 class server_state;
 class backup_service;
-
-typedef rpc_holder<configuration_query_backup_policy_request,
-                   configuration_query_backup_policy_response>
-    query_backup_policy_rpc;
-typedef rpc_holder<configuration_modify_backup_policy_request,
-                   configuration_modify_backup_policy_response>
-    configuration_modify_backup_policy_rpc;
-typedef rpc_holder<start_backup_app_request, start_backup_app_response> start_backup_app_rpc;
 
 struct backup_info_status
 {
@@ -303,6 +296,7 @@ mock_private :
 
     // backup related
     backup_info _cur_backup;
+    bool _is_backup_failed;
     // backup_id --> backup_info
     std::map<int64_t, backup_info> _backup_history;
     backup_progress _progress;
@@ -342,6 +336,7 @@ public:
     void query_backup_policy(query_backup_policy_rpc rpc);
     void modify_backup_policy(configuration_modify_backup_policy_rpc rpc);
     void start_backup_app(start_backup_app_rpc rpc);
+    void query_backup_status(query_backup_status_rpc rpc);
 
     // compose the absolute path(AP) for policy
     // input:
@@ -357,8 +352,11 @@ public:
     std::string get_backup_path(const std::string &policy_name, int64_t backup_id);
 
 private:
+    friend class backup_service_test;
     friend class meta_service_test_app;
-    
+
+    FRIEND_TEST(backup_service_test, test_init_backup);
+    FRIEND_TEST(backup_service_test, test_query_backup_status);
     FRIEND_TEST(meta_backup_service_test, test_add_backup_policy);
 
     void start_create_policy_meta_root(dsn::task_ptr callback);
@@ -382,8 +380,7 @@ private:
     zlock _lock;
     std::map<std::string, std::shared_ptr<policy_context>>
         _policy_states; // policy_name -> policy_context
-    // backup_id -> backup_engine
-    std::unordered_map<int32_t, std::shared_ptr<backup_engine>> _backup_states;
+    std::vector<std::shared_ptr<backup_engine>> _backup_states;
 
     // the root of policy metas, stored on remote_storage(zookeeper)
     std::string _policy_meta_root;

@@ -73,6 +73,7 @@ public:
     virtual ~meta_service();
 
     error_code start();
+    void stop();
 
     const replication_options &get_options() const { return _opts; }
     const meta_options &get_meta_options() const { return _meta_opts; }
@@ -168,6 +169,7 @@ private:
 
     // backup/restore
     void on_start_backup_app(start_backup_app_rpc rpc);
+    void on_query_backup_status(query_backup_status_rpc rpc);
     void on_start_restore(dsn::message_ex *req);
     void on_add_backup_policy(dsn::message_ex *req);
     void on_query_backup_policy(query_backup_policy_rpc policy_rpc);
@@ -218,6 +220,8 @@ private:
     bool check_freeze() const;
 
 private:
+    friend class backup_engine_test;
+    friend class backup_service_test;
     friend class bulk_load_service_test;
     friend class meta_backup_service_test;
     friend class meta_backup_test_base;
@@ -230,6 +234,7 @@ private:
     friend class meta_split_service_test;
     friend class meta_test_base;
     friend class policy_context_test;
+    friend class server_state_restore_test;
     friend class test::test_checker;
 
     replication_options _opts;

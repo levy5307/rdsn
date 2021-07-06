@@ -97,6 +97,8 @@ public:
     //
     void initialize(const replication_options &opts, bool clear = false);
     void initialize(bool clear = false);
+    void initialize_fs_manager(std::vector<std::string> &data_dirs,
+                               std::vector<std::string> &data_dir_tags);
     void set_options(const replication_options &opts) { _options = opts; }
     void open_service();
     void close();
@@ -219,9 +221,8 @@ public:
     void on_disk_migrate(replica_disk_migrate_rpc rpc);
 
     // query partitions compact status by app_id
-    void
-    query_app_compact_status(int32_t app_id,
-                             /*out*/ std::unordered_map<gpid, manual_compaction_status> &status);
+    void query_app_manual_compact_status(
+        int32_t app_id, /*out*/ std::unordered_map<gpid, manual_compaction_status> &status);
 
 private:
     enum replica_node_state
@@ -276,6 +277,8 @@ private:
                          partition_status::type status,
                          error_code error);
     void update_disk_holding_replicas();
+
+    void update_disks_status();
 
     void register_ctrl_command();
 
@@ -365,6 +368,7 @@ private:
     dsn_handle_t _query_app_envs_command;
 #ifdef DSN_ENABLE_GPERF
     dsn_handle_t _release_tcmalloc_memory_command;
+    dsn_handle_t _get_tcmalloc_status_command;
     dsn_handle_t _max_reserved_memory_percentage_command;
 #endif
     dsn_handle_t _max_concurrent_bulk_load_downloading_count_command;
@@ -395,6 +399,8 @@ private:
 
     // replica count exectuting bulk load downloading concurrently
     std::atomic_int _bulk_load_downloading_count;
+
+    bool _is_running;
 
     // performance counters
     perf_counter_wrapper _counter_replicas_count;

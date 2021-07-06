@@ -1,6 +1,19 @@
-// Copyright (c) 2017-present, Xiaomi, Inc.  All rights reserved.
-// This source code is licensed under the Apache License Version 2.0, which
-// can be found in the LICENSE file in the root directory of this source tree.
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
 
 #include <dsn/utility/flags.h>
 #include <dsn/utility/config_api.h>
@@ -108,14 +121,13 @@ public:
     void add_tag(const flag_tag &tag) { _tags.insert(tag); }
     bool has_tag(const flag_tag &tag) const { return _tags.find(tag) != _tags.end(); }
 
-    std::string to_json() const
+    void to_table_printer(utils::table_printer &tp) const
     {
 #define TABLE_PRINTER_ADD_VALUE(type, type_enum)                                                   \
     case type_enum:                                                                                \
         tp.add_row_name_and_data("value", value<type>());                                          \
         break;
 
-        utils::table_printer tp;
         tp.add_row_name_and_data("name", _name);
         tp.add_row_name_and_data("section", _section);
         tp.add_row_name_and_data("type", enum_to_string(_type));
@@ -130,7 +142,12 @@ public:
             TABLE_PRINTER_ADD_VALUE(double, FV_DOUBLE);
             TABLE_PRINTER_ADD_VALUE(const char *, FV_STRING);
         }
+    }
 
+    std::string to_json() const
+    {
+        utils::table_printer tp;
+        to_table_printer(tp);
         std::ostringstream out;
         tp.output(out, utils::table_printer::output_format::kJsonCompact);
         return out.str();
@@ -227,13 +244,15 @@ public:
 
     std::string list_all_flags() const
     {
-        utils::table_printer tp;
+        utils::multi_table_printer mtp;
         for (const auto &flag : _flags) {
-            tp.add_row_name_and_data(flag.first, flag.second.to_json());
+            utils::table_printer tp(flag.first);
+            flag.second.to_table_printer(tp);
+            mtp.add(std::move(tp));
         }
 
         std::ostringstream out;
-        tp.output(out, utils::table_printer::output_format::kJsonCompact);
+        mtp.output(out, utils::table_printer::output_format::kJsonCompact);
         return out.str();
     }
 

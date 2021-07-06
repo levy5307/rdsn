@@ -16,6 +16,7 @@
 // under the License.
 
 #include <dsn/service_api_cpp.h>
+#include <dsn/utility/fail_point.h>
 #include <dsn/utils/time_utils.h>
 #include <gtest/gtest.h>
 
@@ -534,6 +535,61 @@ TEST_F(policy_context_test, test_app_dropped_during_backup)
             test_policy_name + std::string("@") + std::to_string(bi.backup_id);
         ASSERT_EQ(cur_backup_sig, _mp._backup_sig);
     }
+}
+
+TEST_F(policy_context_test, test_disable_backup_policy)
+{
+    _policy = _mp.get_policy();
+    _policy.is_disable = true;
+    _mp.set_policy(_policy);
+
+    _mp._backup_history.clear();
+    _mp._cur_backup.backup_id = 0;
+    _mp._cur_backup.end_time_ms = 0;
+
+    backup_info bi;
+    bi.start_time_ms = dsn_now_ms();
+    bi.end_time_ms = 0;
+    bi.app_ids = {1};
+    bi.backup_id = bi.start_time_ms;
+    _mp.add_backup_history(bi);
+
+    // 'start_backup_app_meta_unlocked()' should not be called because policy is disabled
+    _mp.continue_current_backup_unlocked();
+    ASSERT_FALSE(_mp.notifier_start_backup_app_meta_unlocked().wait_for(5000));
+}
+
+TEST_F(policy_context_test, test_backup_failed)
+{
+    fail::setup();
+    fail::cfg("mock_local_service_write_failed", "100%1*return(ERR_FS_INTERNAL)");
+
+    // app 1 is available.
+    dsn::app_info info;
+    info.is_stateful = true;
+    info.app_id = 1;
+    info.app_type = "simple_kv";
+    info.max_replica_count = 3;
+    info.partition_count = 4;
+    info.status = dsn::app_status::AS_AVAILABLE;
+    _service->get_server_state()->_all_apps.emplace(info.app_id, app_state::create(info));
+
+    {
+        zauto_lock l(_mp._lock);
+        _mp._backup_history.clear();
+        _mp.reset_records();
+
+        // start backup in this policy
+        _mp.issue_new_backup_unlocked();
+    }
+    sleep(1);
+    {
+        zauto_lock l(_mp._lock);
+        ASSERT_TRUE(_mp._is_backup_failed);
+    }
+    ASSERT_FALSE(_mp.is_under_backuping());
+
+    fail::teardown();
 }
 
 // test should_start_backup_unlock()

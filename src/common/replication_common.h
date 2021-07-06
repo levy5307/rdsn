@@ -132,8 +132,18 @@ public:
 
 public:
     replication_options();
-    void initialize();
     ~replication_options();
+
+    void initialize();
+    static void get_data_dir_and_tag(const std::string &config_dirs_str,
+                                     const std::string &default_dir,
+                                     const std::string &app_name,
+                                     /*out*/ std::vector<std::string> &data_dirs,
+                                     /*out*/ std::vector<std::string> &data_dir_tags);
+    static void get_data_dirs_in_black_list(const std::string &fname,
+                                            /*out*/ std::vector<std::string> &dirs);
+    static bool check_if_in_black_list(const std::vector<std::string> &black_list_dir,
+                                       const std::string &dir);
 
 private:
     void sanity_check();
@@ -152,6 +162,7 @@ public:
     static const std::string APP_ID;
     static const std::string BACKUP_ID;
     static const std::string SKIP_BAD_PARTITION;
+    static const std::string RESTORE_PATH;
 };
 
 class bulk_load_constant
@@ -164,6 +175,5 @@ public:
     static const std::string BULK_LOAD_LOCAL_ROOT_DIR;
     static const int32_t PROGRESS_FINISHED;
 };
-
 } // namespace replication
 } // namespace dsn

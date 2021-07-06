@@ -78,6 +78,8 @@ void primary_context::cleanup(bool clean_pending_mutations)
     cleanup_bulk_load_states();
 
     cleanup_split_states();
+
+    secondary_disk_status.clear();
 }
 
 bool primary_context::is_cleaned()
@@ -176,6 +178,19 @@ void primary_context::cleanup_split_states()
     split_stopped_secondary.clear();
 }
 
+bool primary_context::secondary_disk_space_insufficient() const
+{
+    for (const auto &kv : secondary_disk_status) {
+        if (kv.second == disk_status::SPACE_INSUFFICIENT) {
+            ddebug_f("partition[{}] secondary[{}] disk space is insufficient",
+                     membership.pid,
+                     kv.first.to_string());
+            return true;
+        }
+    }
+    return false;
+}
+
 bool secondary_context::cleanup(bool force)
 {
     CLEANUP_TASK(checkpoint_task, force)
@@ -252,6 +267,10 @@ bool partition_split_context::cleanup(bool force)
         CLEANUP_TASK(check_state_task, force)
     }
 
+    splitting_start_ts_ns = 0;
+    splitting_start_async_learn_ts_ns = 0;
+    splitting_copy_file_count = 0;
+    splitting_copy_file_size = 0;
     parent_gpid.set_app_id(0);
     is_prepare_list_copied = false;
     is_caught_up = false;
