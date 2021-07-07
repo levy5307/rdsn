@@ -133,7 +133,7 @@ private:
     bool copy_primary_per_app(const std::shared_ptr<app_state> &app,
                               bool still_have_less_than_average,
                               int replicas_low);
-    bool primary_balancer_per_app(const std::shared_ptr<app_state> &app);
+    bool primary_balancer_per_app(const std::shared_ptr<app_state> &app, bool only_move_primary);
 
     bool copy_secondary_per_app(const std::shared_ptr<app_state> &app);
 
@@ -347,8 +347,6 @@ private:
                     /*out*/ partition_set &selected_pids,
                     /*out*/ migration_list &list,
                     /*out*/ ClusterMigrationInfo &cluster_info);
-
-    bool move_primary_per_app(const std::shared_ptr<app_state> &app, const node_mapper &nodes);
 };
 
 inline configuration_proposal_action

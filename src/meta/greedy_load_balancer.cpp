@@ -733,7 +733,8 @@ void greedy_load_balancer::shortest_path(std::vector<bool> &visit,
 }
 
 // load balancer based on ford-fulkerson
-bool greedy_load_balancer::primary_balancer_per_app(const std::shared_ptr<app_state> &app)
+bool greedy_load_balancer::primary_balancer_per_app(const std::shared_ptr<app_state> &app,
+                                                    bool only_move_primary)
 {
     dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
     ddebug("primary balancer for app(%s:%d)", app->app_name.c_str(), app->app_id);
@@ -798,7 +799,7 @@ bool greedy_load_balancer::primary_balancer_per_app(const std::shared_ptr<app_st
     // we can't make the server load more balanced
     // by moving primaries to secondaries
     if (!visit[graph_nodes - 1] || flow[graph_nodes - 1] == 0) {
-        if (!_only_move_primary) {
+        if (!only_move_primary) {
             return copy_primary_per_app(app, lower_count != 0, replicas_low);
         } else {
             ddebug("stop to move primary for app(%s) coz it is disabled", app->get_logname());
@@ -852,7 +853,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
             if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
                 continue;
 
-            bool enough_information = primary_balancer_per_app(app);
+            bool enough_information = primary_balancer_per_app(app, _only_move_primary);
             if (!enough_information) {
                 // Even if we don't have enough info for current app,
                 // the decisions made by previous apps are kept.
@@ -930,7 +931,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
             if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
                 continue;
 
-            bool enough_information = move_primary_per_app(app, nodes);
+            bool enough_information = primary_balancer_per_app(app, true);
             if (!enough_information) {
                 return;
             }
@@ -1235,22 +1236,29 @@ bool greedy_load_balancer::get_next_move(const ClusterMigrationInfo &cluster_inf
     flip_map(cluster_info.apps_skew, app_skew_multimap);
     auto max_app_skew = app_skew_multimap.rbegin()->first;
     if (max_app_skew == 0) {
-        // all app balance
+        // Every app is balanced and any move will unbalance a app, so there
+        // is no potential for the greedy algorithm to balance the cluster.
         ddebug_f("hyc: all app balanced");
         return false;
     }
 
     auto server_skew = get_skew(cluster_info.replicas_count);
     if (max_app_skew <= 1 && server_skew <= 1) {
-        // table balance and server balance
+        // Every app is balanced and the cluster as a whole is balanced.
         ddebug_f("hyc: most app balanced and server balanced");
         return false;
     }
 
+    /**
+     * Among the apps with maximum skew, attempt to pick a app where there is
+     * a move that improves the app skew and the cluster skew, if possible. If
+     * not, attempt to pick a move that improves the app skew. If all tables
+     * are balanced, attempt to pick a move that preserves table balance and
+     * improves cluster skew.
+     **/
     bool found = false;
     auto app_range = app_skew_multimap.equal_range(max_app_skew);
     for (auto iter = app_range.first; iter != app_range.second; ++iter) {
-        // get app max, min node set
         auto app_id = iter->second;
         auto it = cluster_info.apps_info.find(app_id);
         if (it == cluster_info.apps_info.end()) {
@@ -1261,41 +1269,45 @@ bool greedy_load_balancer::get_next_move(const ClusterMigrationInfo &cluster_inf
         std::set<rpc_address> app_max_count_nodes;
         get_min_max_set(app_map, app_min_count_nodes, app_max_count_nodes);
 
-        // get server max, min node set
         std::set<rpc_address> cluster_min_count_nodes;
         std::set<rpc_address> cluster_max_count_nodes;
         get_min_max_set(
             cluster_info.replicas_count, cluster_min_count_nodes, cluster_max_count_nodes);
-        // get app and cluster interception
+
+        /**
+         * Compute the intersection of the replica servers most loaded for the app
+         * with the replica servers most loaded overall, and likewise for least loaded.
+         * These are our ideal candidates for moving from and to, respectively.
+         **/
         std::set<rpc_address> app_cluster_min_set;
         get_intersection(app_min_count_nodes, cluster_min_count_nodes, app_cluster_min_set);
         std::set<rpc_address> app_cluster_max_set;
         get_intersection(app_max_count_nodes, cluster_max_count_nodes, app_cluster_max_set);
 
-        if (!app_cluster_min_set.empty() && !app_cluster_max_set.empty()) {
-            // choose a move to make both app and cluster more balanced
-            ddebug_f("hyc: there has a move for app({}) to make both cluster and app more balanced",
-                     app_id);
-            if (pick_up_move(cluster_info,
-                             app_cluster_max_set,
-                             app_cluster_min_set,
-                             app_id,
-                             selected_pid,
-                             next_move)) {
-                found = true;
-                break;
-            }
-        }
-
+        /**
+         * Do not move replicas of a balanced app if the least (most) loaded
+         * servers overall do not intersect the servers hosting the least (most)
+         * replicas of the table. Moving a replica in that case might keep the
+         * cluster skew the same or make it worse while keeping the app balanced.
+         **/
         std::multimap<int32_t, rpc_address> app_count_multimap;
         flip_map(app_map, app_count_multimap);
         if (app_count_multimap.rbegin()->first <= app_count_multimap.begin()->first + 1) {
-            // any move for this app may make it more unbalanced
             ddebug_f("hyc: any move for app({}) will make it more unbalanced", app_id);
             continue;
         }
 
-        // choose a move to make app more balanced
+        /**
+         * Do not move replicas of a balanced app if the least (most) loaded
+         * servers overall do not intersect the servers hosting the least (most)
+         * replicas of the app. Moving a replica in that case might keep the
+         * cluster skew the same or make it worse while keeping the app balanced.
+         **/
+        if (app_count_multimap.rbegin()->first <= app_count_multimap.begin()->first + 1 &&
+            (app_cluster_min_set.empty() || app_cluster_max_set.empty())) {
+            continue;
+        }
+
         ddebug_f("hyc: there has a move for app({}) to make only app more balanced", app_id);
         if (pick_up_move(cluster_info,
                          app_cluster_max_set.empty() ? app_max_count_nodes : app_cluster_max_set,
@@ -1525,82 +1537,6 @@ bool greedy_load_balancer::apply_move(const MoveInfo &move,
     cluster_info.replicas_count[source]--;
     cluster_info.replicas_count[target]++;
     return true;
-}
-
-// TODO(heyuchen): refactor this function, duplicated with function `primary_balancer_per_app`
-bool greedy_load_balancer::move_primary_per_app(const std::shared_ptr<app_state> &app,
-                                                const node_mapper &nodes)
-{
-    dassert(t_alive_nodes > 2, "too few alive nodes will lead to freeze");
-    ddebug("primary balancer for app(%s:%d)", app->app_name.c_str(), app->app_id);
-
-    // const node_mapper &nodes = *(t_global_view->nodes);
-    int replicas_low = app->partition_count / t_alive_nodes;
-    int replicas_high = (app->partition_count + t_alive_nodes - 1) / t_alive_nodes;
-
-    int lower_count = 0, higher_count = 0;
-    for (auto iter = nodes.begin(); iter != nodes.end(); ++iter) {
-        int c = iter->second.primary_count(app->app_id);
-        if (c > replicas_high)
-            higher_count++;
-        else if (c < replicas_low)
-            lower_count++;
-    }
-    if (higher_count == 0 && lower_count == 0) {
-        dinfo("the primaries are balanced for app(%s:%d)", app->app_name.c_str(), app->app_id);
-        return true;
-    }
-
-    size_t graph_nodes = t_alive_nodes + 2;
-    std::vector<std::vector<int>> network(graph_nodes, std::vector<int>(graph_nodes, 0));
-
-    // make graph
-    for (auto iter = nodes.begin(); iter != nodes.end(); ++iter) {
-        int from = address_id[iter->first];
-        const node_state &ns = iter->second;
-        int c = ns.primary_count(app->app_id);
-        if (c > replicas_low)
-            network[0][from] = c - replicas_low;
-        else
-            network[from][graph_nodes - 1] = replicas_low - c;
-
-        ns.for_each_primary(app->app_id, [&, this](const gpid &pid) {
-            const partition_configuration &pc = app->partitions[pid.get_partition_index()];
-            for (auto &target : pc.secondaries) {
-                auto i = address_id.find(target);
-                dassert(i != address_id.end(),
-                        "invalid secondary address, address = %s",
-                        target.to_string());
-                network[from][i->second]++;
-            }
-            return true;
-        });
-    }
-
-    if (higher_count > 0 && lower_count == 0) {
-        for (int i = 0; i != graph_nodes; ++i) {
-            if (network[0][i] > 0)
-                --network[0][i];
-            else
-                ++network[i][graph_nodes - 1];
-        }
-    }
-    dinfo("%s: start to move primary", app->get_logname());
-    std::vector<bool> visit(graph_nodes, false);
-    std::vector<int> flow(graph_nodes, 0);
-    std::vector<int> prev(graph_nodes, -1);
-
-    shortest_path(visit, flow, prev, network);
-    // we can't make the server load more balanced
-    // by moving primaries to secondaries
-    if (!visit[graph_nodes - 1] || flow[graph_nodes - 1] == 0) {
-        ddebug("hyc: can not find any move primary for app(%s) to make server more balanced",
-               app->get_logname());
-        return true;
-    }
-
-    dinfo("%u primaries are flew", flow[graph_nodes - 1]);
-    return move_primary_based_on_flow_per_app(app, prev, flow);
 }
 
 } // namespace replication
