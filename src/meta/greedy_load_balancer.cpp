@@ -851,6 +851,7 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
 
 void greedy_load_balancer::app_balancer(bool balance_checker) {
     const app_mapper &apps = *t_global_view->apps;
+
     for (const auto &kv : apps) {
         const std::shared_ptr<app_state> &app = kv.second;
         if (is_ignored_app(kv.first)) {
