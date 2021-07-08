@@ -829,9 +829,6 @@ bool greedy_load_balancer::all_replica_infos_collected(const node_state &ns)
 
 void greedy_load_balancer::greedy_balancer(const bool balance_checker)
 {
-    const app_mapper &apps = *t_global_view->apps;
-    const node_mapper &nodes = *t_global_view->nodes;
-
     dassert(t_alive_nodes > 2, "too few nodes will be freezed");
     number_nodes(*t_global_view->nodes);
 
@@ -842,127 +839,139 @@ void greedy_load_balancer::greedy_balancer(const bool balance_checker)
         }
     }
 
-    // TODO(heyuchen): refactor it
     if (!_balance_cluster) {
-        for (const auto &kv : apps) {
-            const std::shared_ptr<app_state> &app = kv.second;
-            if (is_ignored_app(kv.first)) {
-                ddebug_f("skip to do primary balance for the ignored app[{}]", app->get_logname());
-                continue;
-            }
-            if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
-                continue;
+        app_balancer(balance_checker);
+        return;
+    }
 
-            bool enough_information = primary_balancer_per_app(app, _only_move_primary);
-            if (!enough_information) {
-                // Even if we don't have enough info for current app,
-                // the decisions made by previous apps are kept.
-                // t_migration_result->empty();
-                return;
-            }
-            if (!balance_checker) {
-                if (!t_migration_result->empty()) {
-                    if (_balancer_in_turn) {
-                        ddebug("stop to handle more apps after we found some actions for %s",
-                               app->get_logname());
-                        return;
-                    }
-                }
-            }
+    if (!balance_checker) {
+        cluster_balancer();
+    }
+}
+
+void greedy_load_balancer::app_balancer(bool balance_checker) {
+    const app_mapper &apps = *t_global_view->apps;
+    for (const auto &kv : apps) {
+        const std::shared_ptr<app_state> &app = kv.second;
+        if (is_ignored_app(kv.first)) {
+            ddebug_f("skip to do primary balance for the ignored app[{}]", app->get_logname());
+            continue;
         }
+        if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
+            continue;
 
-        // TODO: do primary_balancer_globally when we find a good approach to
-        // make decision according to disk load.
-        // primary_balancer_globally();
-
-        if (!balance_checker) {
-            if (!t_migration_result->empty()) {
-                ddebug("stop to do secondary balance coz we already has actions to do");
-                return;
-            }
-        }
-        if (_only_primary_balancer) {
-            ddebug("stop to do secondary balancer coz it is not allowed");
+        bool enough_information = primary_balancer_per_app(app, _only_move_primary);
+        if (!enough_information) {
+            // Even if we don't have enough info for current app,
+            // the decisions made by previous apps are kept.
+            // t_migration_result->empty();
             return;
         }
-
-        // we seperate the primary/secondary balancer for 2 reasons:
-        // 1. globally primary balancer may make secondary unbalanced
-        // 2. in one-by-one mode, a secondary balance decision for an app may be prior than
-        // another app's primary balancer if not seperated.
-        for (const auto &kv : apps) {
-            const std::shared_ptr<app_state> &app = kv.second;
-            if (is_ignored_app(kv.first)) {
-                ddebug_f("skip to do secondary balance for the ignored app[{}]",
-                         app->get_logname());
-                continue;
-            }
-
-            if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
-                continue;
-
-            bool enough_information = copy_secondary_per_app(app);
-            if (!enough_information) {
-                // Even if we don't have enough info for current app,
-                // the decisions made by previous apps are kept.
-                // t_migration_result->empty();
-                return;
-            }
-            if (!balance_checker) {
-                if (!t_migration_result->empty()) {
-                    if (_balancer_in_turn) {
-                        ddebug("stop to handle more apps after we found some actions for %s",
-                               app->get_logname());
-                        return;
-                    }
+        if (!balance_checker) {
+            if (!t_migration_result->empty()) {
+                if (_balancer_in_turn) {
+                    ddebug("stop to handle more apps after we found some actions for %s",
+                           app->get_logname());
+                    return;
                 }
             }
         }
     }
 
-    if (!balance_checker && _balance_cluster) {
-        // move_primary_per_app
-        for (const auto &kv : apps) {
-            const std::shared_ptr<app_state> &app = kv.second;
-            if (is_ignored_app(kv.first)) {
-                ddebug_f("skip to do primary balance for the ignored app[{}]", app->get_logname());
-                continue;
-            }
-            if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
-                continue;
+    // TODO: do primary_balancer_globally when we find a good approach to
+    // make decision according to disk load.
+    // primary_balancer_globally();
 
-            bool enough_information = primary_balancer_per_app(app, true);
-            if (!enough_information) {
-                return;
-            }
+    if (!balance_checker) {
+        if (!t_migration_result->empty()) {
+            ddebug("stop to do secondary balance coz we already has actions to do");
+            return;
+        }
+    }
+    if (_only_primary_balancer) {
+        ddebug("stop to do secondary balancer coz it is not allowed");
+        return;
+    }
+
+    // we seperate the primary/secondary balancer for 2 reasons:
+    // 1. globally primary balancer may make secondary unbalanced
+    // 2. in one-by-one mode, a secondary balance decision for an app may be prior than
+    // another app's primary balancer if not seperated.
+    for (const auto &kv : apps) {
+        const std::shared_ptr<app_state> &app = kv.second;
+        if (is_ignored_app(kv.first)) {
+            ddebug_f("skip to do secondary balance for the ignored app[{}]",
+                     app->get_logname());
+            continue;
+        }
+
+        if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
+            continue;
+
+        bool enough_information = copy_secondary_per_app(app);
+        if (!enough_information) {
+            // Even if we don't have enough info for current app,
+            // the decisions made by previous apps are kept.
+            // t_migration_result->empty();
+            return;
+        }
+        if (!balance_checker) {
             if (!t_migration_result->empty()) {
-                ddebug("hyc: hahaha, move_primary size = {}", t_migration_result->size());
-                return;
+                if (_balancer_in_turn) {
+                    ddebug("stop to handle more apps after we found some actions for %s",
+                           app->get_logname());
+                    return;
+                }
             }
         }
+    }
+}
 
-        // copy_secondary
-        migration_list list;
-        bool enough_information =
+void greedy_load_balancer::cluster_balancer() {
+    const app_mapper &apps = *t_global_view->apps;
+    const node_mapper &nodes = *t_global_view->nodes;
+
+    // move_primary_per_app
+    for (const auto &kv : apps) {
+        const std::shared_ptr<app_state> &app = kv.second;
+        if (is_ignored_app(kv.first)) {
+            ddebug_f("skip to do primary balance for the ignored app[{}]", app->get_logname());
+            continue;
+        }
+        if (app->status != app_status::AS_AVAILABLE || app->is_bulk_loading || app->splitting())
+            continue;
+
+        bool enough_information = primary_balancer_per_app(app, true);
+        if (!enough_information) {
+            return;
+        }
+        if (!t_migration_result->empty()) {
+            ddebug("hyc: hahaha, move_primary size = {}", t_migration_result->size());
+            return;
+        }
+    }
+
+    // copy_secondary
+    migration_list list;
+    bool enough_information =
             total_replica_balance(apps, nodes, cluster_balance_type::kTotal, list);
-        if (!enough_information) {
-            return;
-        }
-        if (!t_migration_result->empty()) {
-            ddebug("hyc: hahaha, copy_secondary size = {}", t_migration_result->size());
-            return;
-        }
+    if (!enough_information) {
+        return;
+    }
+    if (!t_migration_result->empty()) {
+        ddebug("hyc: hahaha, copy_secondary size = {}", t_migration_result->size());
+        return;
+    }
 
-        // copy_primary
-        enough_information =
+    // copy_primary
+    enough_information =
             total_replica_balance(apps, nodes, cluster_balance_type::kPrimary, list);
-        if (!enough_information) {
-            return;
-        }
-        if (!t_migration_result->empty()) {
-            ddebug("hyc: hahaha, copy_primary size = {}", t_migration_result->size());
-            return;
-        }
+    if (!enough_information) {
+        return;
+    }
+    if (!t_migration_result->empty()) {
+        ddebug("hyc: hahaha, copy_primary size = {}", t_migration_result->size());
+        return;
     }
 }
 
